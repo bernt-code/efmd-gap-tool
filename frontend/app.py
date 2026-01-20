@@ -16,6 +16,7 @@ import streamlit as st
 import requests
 import os
 from datetime import datetime
+from bulk_upload import render_bulk_upload
 
 # Configuration
 API_URL = os.getenv('API_URL', 'http://localhost:8002')
@@ -91,13 +92,57 @@ if mode == "⚙️ Setup":
         # Get institutions
    # API not running - show message
         st.warning("⚠️ API server not running. Use Programme Scraper instead.")
-        st.stop()
+        pass  # Removed st.stop() to allow tab2 to render
     
     with tab2:
-        st.subheader("Select Existing Programme")
-    
-        programmes = [] 
-    st.info("No programmes found. Create one first.")
+        st.subheader("Select Existing Institution & Programme")
+        
+        # Fetch institutions from API
+        try:
+            inst_resp = requests.get(f"{API_URL}/institutions")
+            if inst_resp.ok:
+                institutions = inst_resp.json().get('institutions', [])
+                # Filter out empty institutions
+                institutions = [i for i in institutions if i.get('name')]
+            else:
+                institutions = []
+        except:
+            institutions = []
+        
+        if not institutions:
+            st.info("No institutions found. Create one first using the 'Create New' tab.")
+        else:
+            # Institution dropdown
+            inst_options = {f"{i['name']} ({i.get('city', 'N/A')}, {i.get('country', 'N/A')})": i for i in institutions}
+            selected_inst = st.selectbox("Select Institution", list(inst_options.keys()))
+            
+            if selected_inst:
+                institution = inst_options[selected_inst]
+                
+                # Fetch programmes for this institution
+                try:
+                    prog_resp = requests.get(f"{API_URL}/programmes", params={"institution_id": institution['id']})
+                    if prog_resp.ok:
+                        programmes = prog_resp.json().get('programmes', [])
+                    else:
+                        programmes = []
+                except:
+                    programmes = []
+                
+                if not programmes:
+                    st.info("No programmes found for this institution. Create one using Programme Scraper.")
+                else:
+                    prog_options = {p['programme_name']: p for p in programmes}
+                    selected_prog = st.selectbox("Select Programme", list(prog_options.keys()))
+                    
+                    if st.button("✅ Use This Programme", type="primary"):
+                        prog = prog_options[selected_prog]
+                        st.session_state.institution_id = institution['id']
+                        st.session_state.institution_name = institution['name']
+                        st.session_state.programme_id = prog['id']
+                        st.session_state.programme_name = prog['programme_name']
+                        st.success(f"Selected: {prog['programme_name']} at {institution['name']}")
+                        st.rerun()
 
 # ============================================================
 # DASHBOARD MODE
@@ -107,7 +152,7 @@ elif mode == "📊 Dashboard":
     
     if 'programme_id' not in st.session_state:
         st.warning("⚠️ Please select a programme in Setup first")
-        st.stop()
+        pass  # Removed st.stop() to allow tab2 to render
     
     prog_id = st.session_state.programme_id
     
@@ -116,7 +161,7 @@ elif mode == "📊 Dashboard":
     
     if not status_resp.ok:
         st.error("Failed to load status")
-        st.stop()
+        pass  # Removed st.stop() to allow tab2 to render
     
     status = status_resp.json()
     
@@ -248,7 +293,7 @@ elif mode == "📊 Dashboard":
     programme_ready = ilos['count'] >= 5
     
     if cv_ready and programme_ready:
-        st.success("## ✅ Ready for EFMD Submission!")
+        st.success("## ✅ Accreditation Eligibility Score: 100%!")
         st.balloons()
     else:
         # Calculate percentage
@@ -261,7 +306,7 @@ elif mode == "📊 Dashboard":
         ])
         readiness_pct = int(complete_items / total_items * 100)
         
-        st.warning(f"## 🔄 Readiness: {readiness_pct}%")
+        st.warning(f"## 🔄 Accreditation Eligibility Score: {readiness_pct}%")
         
         # What's missing
         missing = []
@@ -277,6 +322,43 @@ elif mode == "📊 Dashboard":
         st.markdown("**Still needed:** " + " • ".join(missing))
     
     st.markdown("---")
+    # Calculate readiness_pct for routing (need it outside the else block)
+    total_items = 4
+    complete_items = sum([
+        1 if faculty['complete'] else 0,
+        1 if students['complete'] else 0,
+        1 if alumni['complete'] else 0,
+        1 if programme_ready else 0
+    ])
+    readiness_pct = int(complete_items / total_items * 100)
+    
+    st.markdown("---")
+                   
+    # Report Routing
+    st.subheader("📄 Next Steps")
+    col1, col2 = st.columns(2)
+    
+    if readiness_pct < 100:
+        with col1:
+            if st.button("📊 Generate Gap Report", type="primary", key="generate_gap_report"):
+                resp = requests.get(f"{API_URL}/programme/{prog_id}/gap-report")
+                if resp.ok:
+                    st.code(resp.text, language=None)
+        with col2:
+            st.button("📝 Generate 16-Page OX Report", disabled=True)
+            st.caption("Available when Eligibility Score reaches 100%")
+    else:
+        with col1:
+            st.button("📊 View Gap Report", disabled=True)
+        with col2:
+            if st.button("📝 Generate 16-Page OX Report", type="primary"):
+                st.info("OX Report generation coming soon...")
+    
+    st.markdown("---")
+    
+    # =========================================================
+    # ROW 4: TOP SELECTIONS (Expandable)
+    # =========================================================
     
     # =========================================================
     # ROW 4: TOP SELECTIONS (Expandable)
@@ -352,56 +434,68 @@ elif mode == "👨‍🏫 Faculty Upload":
     st.title("👨‍🏫 Faculty CV Upload")
     
     if 'institution_id' not in st.session_state:
-        st.warning("⚠️ Please select a programme in Setup first")
-        st.stop()
+        st.warning("⚠️ Please select an institution in Setup first")
+        pass  # Removed st.stop() to allow tab2 to render
     
     inst_id = st.session_state.institution_id
     
-    st.markdown("""
-    Upload your CV to contribute to EFMD accreditation data collection.
+    # Tabs for bulk vs single upload
+    tab_bulk, tab_single = st.tabs(["📁 Bulk Upload (25+ files)", "📄 Single Upload"])
     
-    **Accepted formats:** PDF, DOCX, TXT
+    # BULK UPLOAD TAB
+    with tab_bulk:
+        render_bulk_upload(
+            upload_type="faculty",
+            entity_id=inst_id,
+            api_url=API_URL
+        )
     
-    Your CV will be analyzed for:
-    - Academic qualifications
-    - Research publications
-    - International experience
-    - Industry connections
-    """)
-    
-    uploaded_file = st.file_uploader("Upload CV", type=['pdf', 'docx', 'txt'])
-    
-    if uploaded_file:
-        if st.button("Process CV", type="primary"):
-            with st.spinner("Analyzing CV..."):
-                files = {'file': (uploaded_file.name, uploaded_file.getvalue())}
-                resp = requests.post(f"{API_URL}/upload/faculty/{inst_id}", files=files)
-                
-                if resp.ok:
-                    result = resp.json()
+    # SINGLE UPLOAD TAB (existing functionality)
+    with tab_single:
+        st.markdown("""
+        Upload your CV to contribute to EFMD accreditation data collection.
+        
+        **Accepted formats:** PDF, DOCX, TXT
+        
+        Your CV will be analyzed for:
+        - Academic qualifications
+        - Research publications
+        - International experience
+        - Industry connections
+        """)
+        
+        uploaded_file = st.file_uploader("Upload CV", type=['pdf', 'docx', 'txt'], key="faculty_single")
+        
+        if uploaded_file:
+            if st.button("Process CV", type="primary", key="faculty_process"):
+                with st.spinner("Analyzing CV..."):
+                    files = {'file': (uploaded_file.name, uploaded_file.getvalue())}
+                    resp = requests.post(f"{API_URL}/upload/faculty/{inst_id}", files=files)
                     
-                    st.success(f"✅ {result['message']}")
-                    
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.metric("EFMD Score", f"{result['efmd_score']}/100")
-                    with col2:
-                        if result['recommended']:
-                            st.success("✅ Recommended for submission")
-                        else:
-                            st.warning("⚠️ May not be selected")
-                    
-                    if result.get('strengths'):
-                        st.markdown("**Strengths:**")
-                        for s in result['strengths']:
-                            st.markdown(f"- ✅ {s}")
-                    
-                    if result.get('risks'):
-                        st.markdown("**Areas for improvement:**")
-                        for r in result['risks']:
-                            st.markdown(f"- ⚠️ {r}")
-                else:
-                    st.error(f"Error: {resp.text}")
+                    if resp.ok:
+                        result = resp.json()
+                        st.success(f"✅ {result['message']}")
+                        
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.metric("EFMD Score", f"{result['efmd_score']}/100")
+                        with col2:
+                            if result['recommended']:
+                                st.success("✅ Recommended for submission")
+                            else:
+                                st.warning("⚠️ May not be selected")
+                        
+                        if result.get('strengths'):
+                            st.markdown("**Strengths:**")
+                            for s in result['strengths']:
+                                st.markdown(f"- ✅ {s}")
+                        
+                        if result.get('risks'):
+                            st.markdown("**Areas for improvement:**")
+                            for r in result['risks']:
+                                st.markdown(f"- ⚠️ {r}")
+                    else:
+                        st.error(f"Error: {resp.text}")
 
 
 # ============================================================
@@ -413,44 +507,57 @@ elif mode == "👨‍🎓 Student Upload":
     
     if 'programme_id' not in st.session_state:
         st.warning("⚠️ Please select a programme in Setup first")
-        st.stop()
+        pass  # Removed st.stop() to allow tab2 to render
     
     prog_id = st.session_state.programme_id
     
-    st.markdown("""
-    Upload your CV to contribute to EFMD accreditation data.
+    # Tabs for bulk vs single upload
+    tab_bulk, tab_single = st.tabs(["📁 Bulk Upload (25+ files)", "📄 Single Upload"])
     
-    We analyze:
-    - Nationality and background
-    - Prior education
-    - Work experience
-    - Language skills
-    """)
+    # BULK UPLOAD TAB
+    with tab_bulk:
+        render_bulk_upload(
+            upload_type="student",
+            entity_id=prog_id,
+            api_url=API_URL
+        )
     
-    cohort_year = st.number_input("Cohort Year", min_value=2020, max_value=2030, value=datetime.now().year)
-    
-    uploaded_file = st.file_uploader("Upload CV", type=['pdf', 'docx', 'txt'])
-    
-    if uploaded_file:
-        if st.button("Process CV", type="primary"):
-            with st.spinner("Analyzing CV..."):
-                files = {'file': (uploaded_file.name, uploaded_file.getvalue())}
-                resp = requests.post(
-                    f"{API_URL}/upload/student/{prog_id}?cohort_year={cohort_year}", 
-                    files=files
-                )
-                
-                if resp.ok:
-                    result = resp.json()
-                    st.success(f"✅ {result['message']}")
+    # SINGLE UPLOAD TAB
+    with tab_single:
+        st.markdown("""
+        Upload your CV to contribute to EFMD accreditation data.
+        
+        We analyze:
+        - Nationality and background
+        - Prior education
+        - Work experience
+        - Language skills
+        """)
+        
+        cohort_year = st.number_input("Cohort Year", min_value=2020, max_value=2030, value=datetime.now().year, key="student_cohort")
+        
+        uploaded_file = st.file_uploader("Upload CV", type=['pdf', 'docx', 'txt'], key="student_single")
+        
+        if uploaded_file:
+            if st.button("Process CV", type="primary", key="student_process"):
+                with st.spinner("Analyzing CV..."):
+                    files = {'file': (uploaded_file.name, uploaded_file.getvalue())}
+                    resp = requests.post(
+                        f"{API_URL}/upload/student/{prog_id}?cohort_year={cohort_year}",
+                        files=files
+                    )
                     
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.metric("EFMD Score", f"{result['efmd_score']}/100")
-                    with col2:
-                        st.metric("Nationality", result.get('nationality', 'Unknown'))
-                else:
-                    st.error(f"Error: {resp.text}")
+                    if resp.ok:
+                        result = resp.json()
+                        st.success(f"✅ {result['message']}")
+                        
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.metric("EFMD Score", f"{result['efmd_score']}/100")
+                        with col2:
+                            st.metric("Nationality", result.get('nationality', 'Unknown'))
+                    else:
+                        st.error(f"Error: {resp.text}")
 
 
 # ============================================================
@@ -462,49 +569,74 @@ elif mode == "🎯 Alumni Upload":
     
     if 'programme_id' not in st.session_state:
         st.warning("⚠️ Please select a programme in Setup first")
-        st.stop()
+        pass  # Removed st.stop() to allow tab2 to render
     
     prog_id = st.session_state.programme_id
     
-    st.markdown("""
-    Upload your CV to help demonstrate programme outcomes.
+    # Tabs for bulk vs single upload
+    tab_bulk, tab_single = st.tabs(["📁 Bulk Upload (25+ files)", "📄 Single Upload"])
     
-    We track:
-    - Employment status
-    - Time to employment
-    - Career progression
-    - Employer quality
-    """)
+    # BULK UPLOAD TAB
+    with tab_bulk:
+        st.markdown("---")
+        default_grad_year = st.number_input(
+            "Default Graduation Year (applies to all files in batch)", 
+            min_value=2015, 
+            max_value=2030, 
+            value=2023,
+            key="alumni_bulk_grad_year",
+            help="All CVs in this batch will be tagged with this graduation year. For mixed years, use single upload."
+        )
+        st.info(f"📅 All CVs will be tagged with graduation year: **{default_grad_year}**")
+        
+        render_bulk_upload(
+            upload_type="alumni",
+            entity_id=prog_id,
+            api_url=API_URL,
+            graduation_year=default_grad_year
+        )
     
-    grad_year = st.number_input("Graduation Year", min_value=2015, max_value=2030, value=2023)
-    
-    uploaded_file = st.file_uploader("Upload CV", type=['pdf', 'docx', 'txt'])
-    
-    if uploaded_file:
-        if st.button("Process CV", type="primary"):
-            with st.spinner("Analyzing CV..."):
-                files = {'file': (uploaded_file.name, uploaded_file.getvalue())}
-                resp = requests.post(
-                    f"{API_URL}/upload/alumni/{prog_id}?graduation_year={grad_year}",
-                    files=files
-                )
-                
-                if resp.ok:
-                    result = resp.json()
-                    st.success(f"✅ {result['message']}")
+    # SINGLE UPLOAD TAB
+    with tab_single:
+        st.markdown("""
+        Upload your CV to help demonstrate programme outcomes.
+        
+        We analyze:
+        - Time to employment after graduation
+        - Employer quality (MBB, Big 4, Fortune 500, etc.)
+        - Career progression
+        - Salary indicators
+        """)
+        
+        graduation_year = st.number_input("Graduation Year", min_value=2015, max_value=2030, value=2023, key="alumni_single_grad")
+        
+        uploaded_file = st.file_uploader("Upload CV", type=['pdf', 'docx', 'txt'], key="alumni_single")
+        
+        if uploaded_file:
+            if st.button("Process CV", type="primary", key="alumni_process"):
+                with st.spinner("Analyzing CV..."):
+                    files = {'file': (uploaded_file.name, uploaded_file.getvalue())}
+                    resp = requests.post(
+                        f"{API_URL}/upload/alumni/{prog_id}?graduation_year={graduation_year}",
+                        files=files
+                    )
                     
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.metric("EFMD Score", f"{result['efmd_score']}/100")
-                    with col2:
-                        st.metric("Current Employer", result.get('employer', 'Unknown'))
-                    
-                    if result.get('strengths'):
-                        st.markdown("**Career Highlights:**")
-                        for s in result['strengths']:
-                            st.markdown(f"- ✅ {s}")
-                else:
-                    st.error(f"Error: {resp.text}")
+                    if resp.ok:
+                        result = resp.json()
+                        st.success(f"✅ {result['message']}")
+                        
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.metric("EFMD Score", f"{result['efmd_score']}/100")
+                        with col2:
+                            st.metric("Current Employer", result.get('employer', 'Unknown'))
+                        
+                        if result.get('strengths'):
+                            st.markdown("**Career Highlights:**")
+                            for s in result['strengths']:
+                                st.markdown(f"- ✅ {s}")
+                    else:
+                        st.error(f"Error: {resp.text}")
 # ============================================================
 # PROGRAMME SCRAPER MODE
 # ============================================================

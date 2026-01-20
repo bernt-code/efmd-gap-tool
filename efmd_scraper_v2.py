@@ -160,6 +160,12 @@ class GapAnalysisResult:
     ilo_has_skills: bool = False
     ilo_has_attitudes: bool = False
     ilo_weak_verb_count: int = 0
+    
+    # Documentation Status
+    courses_total: int = 0
+    courses_with_ilos: int = 0
+    courses_no_ilos: list[str] = field(default_factory=list)  # course names missing ILOs
+    documentation_score: float = 0.0
     ilo_issues: list[str] = field(default_factory=list)
     
     # Pillar Coverage (from semantic matching)
@@ -1116,6 +1122,25 @@ class EFMDScraper:
             gap.structure_issues.append('No ILO mapping matrix visible')
             gap.recommendations.append('Create matrix: Course ILOs → Programme ILOs → Assessments')
         
+        # === Documentation Status ===
+        if programme.courses:
+            gap.courses_total = len(programme.courses)
+            for course in programme.courses:
+                # Check if course has ILOs (assuming course has ilos attribute or similar)
+                course_has_ilos = hasattr(course, 'ilos') and len(course.ilos) > 0
+                if course_has_ilos:
+                    gap.courses_with_ilos += 1
+                else:
+                    gap.courses_no_ilos.append(course.title if hasattr(course, 'title') else str(course))
+            
+            if gap.courses_total > 0:
+                gap.documentation_score = (gap.courses_with_ilos / gap.courses_total) * 100
+            
+            # Add warning if documentation is incomplete
+            if gap.documentation_score < 80:
+                gap.structure_issues.append(f'Only {gap.courses_with_ilos}/{gap.courses_total} courses have documented ILOs')
+                gap.recommendations.append('Document ILOs for all courses before SAR submission')
+        
         # === Eligibility Gates ===
         gap.eligibility_gates = {
             'ELG-1': 'pass',  # Assume business focus if submitted
@@ -1153,6 +1178,11 @@ class EFMDScraper:
         
         # ILO issues (-3 each)
         score -= len(gap.ilo_issues) * 3
+        
+        # Documentation completeness penalty
+        if gap.courses_total > 0 and gap.documentation_score < 100:
+            doc_penalty = int((100 - gap.documentation_score) / 10)  # -1 point per 10% missing
+            score -= doc_penalty
         
         gap.readiness_score = max(0, score)
         gap.eligibility_pass = gap.readiness_score >= 70 and len(gap.critical_gaps) == 0
@@ -1297,6 +1327,29 @@ def format_gap_report(gap: GapAnalysisResult) -> str:
             weak = " ⚠️WEAK" if ilo.has_weak_verb else ""
             display = ilo.text[:80] + "..." if len(ilo.text) > 80 else ilo.text
             lines.append(f"    {i}. {category}{weak} {display}")
+        lines.append("")
+    
+    # Documentation Status
+    if gap.courses_total > 0:
+        lines.append("-" * 70)
+        lines.append("DOCUMENTATION STATUS")
+        lines.append("-" * 70)
+        doc_pct = gap.documentation_score
+        if doc_pct >= 90:
+            doc_icon = "✅"
+        elif doc_pct >= 70:
+            doc_icon = "🟡"
+        else:
+            doc_icon = "❌"
+        lines.append(f"  Courses with ILOs: {gap.courses_with_ilos}/{gap.courses_total} ({doc_pct:.0f}%) {doc_icon}")
+        
+        if gap.courses_no_ilos:
+            lines.append("")
+            lines.append("  Courses missing ILOs:")
+            for course_name in gap.courses_no_ilos[:10]:  # Show max 10
+                lines.append(f"    ❌ {course_name}")
+            if len(gap.courses_no_ilos) > 10:
+                lines.append(f"    ... and {len(gap.courses_no_ilos) - 10} more")
         lines.append("")
     
     # Pillar Coverage

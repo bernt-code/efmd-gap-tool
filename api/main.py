@@ -205,25 +205,40 @@ def extract_text_from_bytes(content: bytes, filename: str) -> str:
 
 
 def parse_cv_with_claude(cv_text: str, prompt: str) -> dict:
-    """Parse CV using Claude."""
-    message = claude.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=4096,
-        messages=[{
-            "role": "user",
-            "content": f"{prompt}\n\n---\nCV TEXT:\n{cv_text[:15000]}"
-        }]
-    )
-    
-    response_text = message.content[0].text
-    
-    # Clean JSON
-    if '```json' in response_text:
-        response_text = response_text.split('```json')[1].split('```')[0]
-    elif '```' in response_text:
-        response_text = response_text.split('```')[1].split('```')[0]
-    
-    return json.loads(response_text)
+    """Parse CV using Claude with better error handling."""
+    response_text = ""
+    try:
+        message = claude.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=4096,
+            messages=[{
+                "role": "user",
+                "content": f"{prompt}\n\n---\nCV TEXT:\n{cv_text[:15000]}"
+            }]
+        )
+        
+        response_text = message.content[0].text.strip()
+        
+        # Try to extract JSON if wrapped in markdown code blocks
+        if "```json" in response_text:
+            response_text = response_text.split("```json")[1].split("```")[0].strip()
+        elif "```" in response_text:
+            response_text = response_text.split("```")[1].split("```")[0].strip()
+        
+        # Handle empty response
+        if not response_text:
+            print("Warning: Claude returned empty response")
+            return {"error": "Empty response from Claude"}
+        
+        return json.loads(response_text)
+        
+    except json.JSONDecodeError as e:
+        print(f"JSON parsing error: {e}")
+        print(f"Response was: {response_text[:500] if response_text else 'empty'}")
+        return {"error": f"Failed to parse Claude response: {str(e)}"}
+    except Exception as e:
+        print(f"Claude API error: {e}")
+        return {"error": f"Claude API error: {str(e)}"}
 
 
 def generate_embedding(text: str) -> list[float]:
@@ -1115,6 +1130,122 @@ async def scrape_programme(programme_id: str):
         raise HTTPException(500, f"Scraper not available: {e}")
     except Exception as e:
         raise HTTPException(500, f"Scraping failed: {str(e)}")
+
+     # ============================================================
+# BULK UPLOAD - DUPLICATE CHECK ENDPOINTS
+# ============================================================
+
+@app.get("/check-duplicate/faculty/{institution_id}")
+async def check_faculty_duplicate(
+    institution_id: str,
+    file_hash: str = Query(...),
+    filename: str = Query(...)
+):
+    """Check if a faculty CV with this hash already exists."""
+    try:
+        # Check by file hash first
+        result = supabase.table('faculty_cvs').select('id, full_name').eq(
+            'institution_id', institution_id
+        ).eq('file_hash', file_hash).execute()
+        
+        if result.data:
+            return {
+                "is_duplicate": True,
+                "existing_id": result.data[0]['id'],
+                "existing_filename": result.data[0]['full_name']
+            }
+        
+        # Also check by filename
+        result_by_name = supabase.table('faculty_cvs').select('id').eq(
+            'institution_id', institution_id
+        ).eq('full_name', filename).execute()
+        
+        if result_by_name.data:
+            return {
+                "is_duplicate": True,
+                "existing_id": result_by_name.data[0]['id'],
+                "existing_filename": filename
+            }
+        
+        return {"is_duplicate": False, "existing_id": None}
+        
+    except Exception as e:
+        print(f"Duplicate check error: {e}")
+        return {"is_duplicate": False, "existing_id": None}
+
+
+@app.get("/check-duplicate/student/{programme_id}")
+async def check_student_duplicate(
+    programme_id: str,
+    file_hash: str = Query(...),
+    filename: str = Query(...)
+):
+    """Check if a student CV with this hash already exists."""
+    try:
+        result = supabase.table('student_cvs').select('id, full_name').eq(
+            'programme_id', programme_id
+        ).eq('file_hash', file_hash).execute()
+        
+        if result.data:
+            return {
+                "is_duplicate": True,
+                "existing_id": result.data[0]['id'],
+                "existing_filename": result.data[0]['full_name']
+            }
+        
+        result_by_name = supabase.table('student_cvs').select('id').eq(
+            'programme_id', programme_id
+        ).eq('full_name', filename).execute()
+        
+        if result_by_name.data:
+            return {
+                "is_duplicate": True,
+                "existing_id": result_by_name.data[0]['id'],
+                "existing_filename": filename
+            }
+        
+        return {"is_duplicate": False, "existing_id": None}
+        
+    except Exception as e:
+        print(f"Duplicate check error: {e}")
+        return {"is_duplicate": False, "existing_id": None}
+
+
+@app.get("/check-duplicate/alumni/{programme_id}")
+async def check_alumni_duplicate(
+    programme_id: str,
+    file_hash: str = Query(...),
+    filename: str = Query(...)
+):
+    """Check if an alumni CV with this hash already exists."""
+    try:
+        result = supabase.table('alumni_cvs').select('id, full_name').eq(
+            'programme_id', programme_id
+        ).eq('file_hash', file_hash).execute()
+        
+        if result.data:
+            return {
+                "is_duplicate": True,
+                "existing_id": result.data[0]['id'],
+                "existing_filename": result.data[0]['full_name']
+            }
+        
+        result_by_name = supabase.table('alumni_cvs').select('id').eq(
+            'programme_id', programme_id
+        ).eq('full_name', filename).execute()
+        
+        if result_by_name.data:
+            return {
+                "is_duplicate": True,
+                "existing_id": result_by_name.data[0]['id'],
+                "existing_filename": filename
+            }
+        
+        return {"is_duplicate": False, "existing_id": None}
+        
+    except Exception as e:
+        print(f"Duplicate check error: {e}")
+        return {"is_duplicate": False, "existing_id": None}   
 # ============================================================
 # RUN
 # ============================================================
