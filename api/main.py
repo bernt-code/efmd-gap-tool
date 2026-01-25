@@ -789,6 +789,7 @@ async def get_baseroom_checklist(programme_id: str):
     return {
         'programme': prog.data['programme_name'],
         'institution': prog.data.get('institutions', {}).get('name'),
+        'gap_analysis': gap.data[0] if gap.data else {},
         
         'baseroom_checklist': {
             'faculty_cvs': {
@@ -961,27 +962,32 @@ async def get_programme_status(programme_id: str):
     students = supabase.table('student_cvs').select('id, efmd_score, include_recommended').eq('programme_id', programme_id).execute()
     alumni = supabase.table('alumni_cvs').select('id, efmd_score, include_recommended').eq('programme_id', programme_id).execute()
     ilos = supabase.table('programme_ilos').select('id').eq('programme_id', programme_id).execute()
+    gap = supabase.table("gap_analyses").select("readiness_score").eq("programme_id", programme_id).order("created_at", desc=True).limit(1).execute()
     
     return {
         'programme': prog.data['programme_name'],
         'institution': prog.data.get('institutions', {}).get('name'),
+        'gap_analysis': gap.data[0] if gap.data else {},
         'faculty': {
             'collected': len(faculty.data or []),
             'recommended': sum(1 for f in (faculty.data or []) if f.get('include_recommended')),
             'target': 25,
-            'complete': len(faculty.data or []) >= 25
+            'complete': len(faculty.data or []) >= 25,
+            'avg_score': sum(f.get('efmd_score', 0) for f in (faculty.data or [])) / len(faculty.data) if faculty.data else 0
         },
         'students': {
             'collected': len(students.data or []),
             'recommended': sum(1 for s in (students.data or []) if s.get('include_recommended')),
             'target': 25,
-            'complete': len(students.data or []) >= 25
+            'complete': len(students.data or []) >= 25,
+            'avg_score': sum(s.get('efmd_score', 0) for s in (students.data or [])) / len(students.data) if students.data else 0
         },
         'alumni': {
             'collected': len(alumni.data or []),
             'recommended': sum(1 for a in (alumni.data or []) if a.get('include_recommended')),
             'target': 25,
-            'complete': len(alumni.data or []) >= 25
+            'complete': len(alumni.data or []) >= 25,
+            'avg_score': sum(a.get('efmd_score', 0) for a in (alumni.data or [])) / len(alumni.data) if alumni.data else 0
         },
         'ilos': {
             'count': len(ilos.data or []),
@@ -1246,6 +1252,158 @@ async def check_alumni_duplicate(
     except Exception as e:
         print(f"Duplicate check error: {e}")
         return {"is_duplicate": False, "existing_id": None}   
+# ============================================================
+# INSTITUTION WEBSITE CRAWLER
+# ============================================================
+
+@app.post("/institution/{institution_id}/crawl")
+async def crawl_institution_website(institution_id: str, max_pages: int = 75):
+    """
+    Crawl institution website to extract OX report data.
+    """
+    import sys
+    
+    # Get institution
+    inst = supabase.table('institutions').select('*').eq('id', institution_id).single().execute()
+    if not inst.data:
+        raise HTTPException(404, "Institution not found")
+    
+    website = inst.data.get('website')
+    if not website:
+        raise HTTPException(400, "Institution has no website URL set")
+    
+    # Add crawler to path
+    crawler_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'school_crawler')
+    if crawler_path not in sys.path:
+        sys.path.insert(0, crawler_path)
+    
+    try:
+        from run_crawler import SchoolCrawler, calculate_efmd_readiness
+        
+        # Run crawler
+        crawler = SchoolCrawler(
+            base_url=website,
+            max_pages=max_pages,
+            delay=0.3,
+            verbose=False
+        )
+        result = crawler.crawl()
+        readiness = calculate_efmd_readiness(result)
+        
+        # Store in database
+        data_record = {
+            'institution_id': institution_id,
+            'total_students': result.total_students,
+            'basic_degree_students': result.basic_degree_students,
+            'doctoral_students': result.doctoral_students,
+            'international_students': result.international_students,
+            'international_students_pct': result.international_students_pct,
+            'bachelor_graduates': result.bachelor_graduates,
+            'master_graduates': result.master_graduates,
+            'doctoral_graduates': result.doctoral_graduates,
+            'bachelor_applicants': result.bachelor_applicants,
+            'master_applicants': result.master_applicants,
+            'total_personnel': result.total_personnel,
+            'teaching_research_staff': result.teaching_research_staff,
+            'international_personnel_pct': result.international_personnel_pct,
+            'international_teaching_pct': result.international_teaching_pct,
+            'nationalities_count': result.nationalities_count,
+            'publications_total': result.publications_total,
+            'publications_year': result.publications_year,
+            'research_funding_eur': result.research_funding_eur,
+            'employment_rate': result.employment_rate,
+            'accreditations': result.accreditations,
+            'has_sustainability_content': result.has_sustainability_content,
+            'sustainability_keywords': result.sustainability_keywords_found,
+            'readiness_score': readiness['overall_pct'],
+            'readiness_details': readiness['details'],
+            'pages_crawled': result.pages_crawled,
+        }
+        
+        # Upsert (update if exists, insert if not)
+        supabase.table('institution_data').upsert(data_record, on_conflict='institution_id').execute()
+        
+        return {
+            'success': True,
+            'institution': inst.data.get('name'),
+            'pages_crawled': result.pages_crawled,
+            'readiness_score': readiness['overall_pct'],
+            'readiness_level': 'HIGH' if readiness['overall_pct'] >= 70 else 'MEDIUM' if readiness['overall_pct'] >= 50 else 'NEEDS DEVELOPMENT',
+            'details': readiness['details'],
+            'data_found': {
+                'students': result.total_students,
+                'graduates': result.master_graduates,
+                'publications': result.publications_total,
+                'personnel': result.total_personnel,
+                'international_pct': result.international_students_pct,
+                'accreditations': result.accreditations,
+            }
+        }
+        
+    except ImportError as e:
+        raise HTTPException(500, f"Crawler not available: {e}")
+    except Exception as e:
+        raise HTTPException(500, f"Crawling failed: {str(e)}")
+
+
+@app.get("/institution/{institution_id}/data")
+async def get_institution_data(institution_id: str):
+    """Get crawled institution data."""
+    result = supabase.table('institution_data').select('*').eq('institution_id', institution_id).single().execute()
+    if not result.data:
+        return {'data': None, 'crawled': False}
+    return {'data': result.data, 'crawled': True}
+
+@app.get("/institution/{institution_id}/ox-data")
+async def get_institution_ox_data(institution_id: str):
+    """Get crawled institution data formatted for OX Report display."""
+    result = supabase.table('institution_data').select('*').eq('institution_id', institution_id).single().execute()
+    if not result.data:
+        return {'ox_data': {}}
+    
+    data = result.data
+    ox_data = {
+        'total_students': data.get('total_students'),
+        'graduates_per_year': data.get('graduates_per_year'),
+        'faculty_count': data.get('faculty_count'),
+        'phd_rate': data.get('phd_rate'),
+        'international_students_pct': data.get('international_students_pct'),
+        'international_faculty_pct': data.get('international_faculty_pct'),
+        'publications': data.get('publications'),
+        'readiness_score': data.get('readiness_score'),
+    }
+    return {'ox_data': ox_data}
+
+
+@app.post("/institution/{institution_id}/document")
+async def upload_institution_document(institution_id: str, file: UploadFile = File(...)):
+    """Upload an institution document (annual report, fact sheet, etc.)"""
+    inst = supabase.table('institutions').select('name').eq('id', institution_id).single().execute()
+    if not inst.data:
+        raise HTTPException(404, "Institution not found")
+    
+    file_content = await file.read()
+    storage_path = f"institution_docs/{institution_id}/{datetime.now().strftime('%Y%m%d_%H%M%S')}_{file.filename}"
+    
+    try:
+        supabase.storage.from_('cvs').upload(storage_path, file_content)
+    except Exception as e:
+        print(f"Storage upload failed: {e}")
+    
+    doc_text = extract_text_from_bytes(file_content, file.filename)
+    
+    try:
+        supabase.table('institution_documents').insert({
+            'institution_id': institution_id,
+            'filename': file.filename,
+            'storage_path': storage_path,
+            'extracted_text': doc_text[:50000] if doc_text else None,
+            'uploaded_at': datetime.now().isoformat()
+        }).execute()
+    except Exception as e:
+        print(f"Document record insert failed: {e}")
+    
+    return {'success': True, 'filename': file.filename}
 # ============================================================
 # RUN
 # ============================================================

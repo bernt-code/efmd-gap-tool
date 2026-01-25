@@ -840,6 +840,11 @@ class EFMDScraper:
                 result['text'] = '\n'.join(text_parts)
                 result['success'] = True
                 
+            elif file_path.lower().endswith(".txt"):
+                with open(file_path, "r", encoding="utf-8") as f:
+                    result["text"] = f.read()
+                result["success"] = True
+                
             else:
                 result['error'] = f'Unsupported format: {file_path}'
                 
@@ -849,6 +854,7 @@ class EFMDScraper:
         return result
 
     def _extract_ilos_from_text(self, text: str) -> list[str]:
+        print(f"DEBUG _extract_ilos_from_text: text length = {len(text)}")
         """Extract ILO-like statements from plain text"""
         ilos = []
         
@@ -893,6 +899,11 @@ class EFMDScraper:
                 text_parts = [para.text for para in doc.paragraphs]
                 result['text'] = '\n'.join(text_parts)
                 result['success'] = True
+                
+            elif file_path.lower().endswith(".txt"):
+                with open(file_path, "r", encoding="utf-8") as f:
+                    result["text"] = f.read()
+                result["success"] = True
                 
             else:
                 result['error'] = f'Unsupported format: {file_path}'
@@ -979,6 +990,7 @@ class EFMDScraper:
                 
                 for course in result.get('courses', []):
                     all_courses.append(course)
+                
             else:
                 print(f"  Failed: {result.get('error')}")
 
@@ -1130,7 +1142,7 @@ class EFMDScraper:
                 course_has_ilos = hasattr(course, 'ilos') and len(course.ilos) > 0
                 if course_has_ilos:
                     gap.courses_with_ilos += 1
-                else:
+            else:
                     gap.courses_no_ilos.append(course.title if hasattr(course, 'title') else str(course))
             
             if gap.courses_total > 0:

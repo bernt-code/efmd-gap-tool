@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-EFMD CV Collection Portal
+EFMD CV datapoints collection Portal
 =========================
 Streamlit frontend for EFMD data collection.
 
@@ -33,18 +33,26 @@ st.set_page_config(
 
 st.sidebar.title("🎓 EFMD Data Collection")
 
+if "mode" not in st.session_state:
+    st.session_state.mode = "📊 Dashboard"
+
 mode = st.sidebar.radio(
     "Select Mode",
-    ["📊 Dashboard", "📄 Programme Scraper", "👨‍🏫 Faculty Upload", "👨‍🎓 Student Upload", "🎯 Alumni Upload", "⚙️ Setup"]
+    ["📊 Dashboard", "📄 Program data", "👨‍🏫 Faculty CV upload", "👨‍🎓 Students CV upload", "🎯 Alumni CV upload", "⚙️ Setup"],
+    key="mode"
 )
-
 st.sidebar.markdown("---")
 st.sidebar.markdown("**Collection Links**")
 st.sidebar.markdown("Share these with your stakeholders:")
 
 # Get active programme from session
 if 'programme_id' in st.session_state and st.session_state.programme_id:
-    prog_id = st.session_state.programme_id
+    prog_id = st.session_state.get("programme_id")
+
+    if not prog_id:
+        st.info("No programme selected. Please create or select a programme first.")
+        st.stop()
+
     inst_id = st.session_state.get('institution_id', '')
     
     st.sidebar.code(f"Faculty:\n/faculty/{inst_id[:8]}...")
@@ -58,8 +66,9 @@ if 'programme_id' in st.session_state and st.session_state.programme_id:
 
 if mode == "⚙️ Setup":
     st.title("⚙️ Setup Institution & Programme")
+    st.session_state.show_baseroom = st.checkbox("Show Base Room Preparation (post-OX feature)", value=False)
     
-    tab1, tab2 = st.tabs(["Create New", "Select Existing"])
+    tab2, tab1 = st.tabs(["Select Existing", "Create New"])
     
     with tab1:
         st.subheader("Create Institution")
@@ -70,29 +79,40 @@ if mode == "⚙️ Setup":
             inst_country = st.text_input("Country", placeholder="Finland")
         with col2:
             inst_city = st.text_input("City", placeholder="Vaasa")
-            inst_website = st.text_input("Website", placeholder="https://www.uwasa.fi")
+            inst_website = st.text_input("Website", placeholder="https://www.uwasa.fi/en")
         
         if st.button("Create Institution", type="primary"):
-            resp = requests.post(f"{API_URL}/institutions", json={
-                'name': inst_name,
-                'country': inst_country,
-                'city': inst_city,
-                'website': inst_website
-            })
-            if resp.ok:
-                data = resp.json()
-                st.success(f"✅ Institution created: {data['institution']['id']}")
-                st.session_state.institution_id = data['institution']['id']
+            if not inst_name:
+                st.error("Institution name is required")
             else:
-                st.error(f"Error: {resp.text}")
+                resp = requests.post(f"{API_URL}/institutions", json={
+                    'name': inst_name,
+                    'country': inst_country,
+                    'city': inst_city,
+                    'website': inst_website
+                })
+                if resp.ok:
+                    data = resp.json()
+                    st.success(f"✅ Institution created: {inst_name}")
+                    st.session_state.institution_id = data['institution']['id']
+                    st.session_state.institution_name = inst_name
+                    
+                    # Auto-crawl if website provided
+                    if inst_website:
+                        with st.spinner(f"🔍 Analyzing {inst_website}... (this takes 1-2 minutes)"):
+                            crawl_resp = requests.post(f"{API_URL}/institution/{data['institution']['id']}/crawl?max_pages=75")
+                            if crawl_resp.ok:
+                                crawl_data = crawl_resp.json()
+                                st.success(f"✅ Website analyzed! Readiness score: {crawl_data.get('readiness_score', 'N/A')}%")
+                            else:
+                                st.warning("Website analysis failed, but institution was created.")
+                    st.rerun()
+                else:
+                    st.error(f"Error: {resp.text}")
         
         st.markdown("---")
         st.subheader("Create Programme")
-        
-        # Get institutions
-   # API not running - show message
-        st.warning("⚠️ API server not running. Use Programme Scraper instead.")
-        pass  # Removed st.stop() to allow tab2 to render
+        st.info("👉 Create programmes in the **Programme Data** section after selecting an institution.")
     
     with tab2:
         st.subheader("Select Existing Institution & Programme")
@@ -118,6 +138,59 @@ if mode == "⚙️ Setup":
             
             if selected_inst:
                 institution = inst_options[selected_inst]
+                st.session_state.institution_id = institution['id']
+                st.session_state.institution_name = institution['name']
+                
+                # ========== INSTITUTION SETTINGS ==========
+                st.markdown("---")
+                
+                # Show website and crawl option
+                website = institution.get('website', '')
+                if website:
+                    col_web1, col_web2 = st.columns([3, 1])
+                    with col_web1:
+                        st.text_input("Website", value=website, disabled=True, key="inst_website_display")
+                    with col_web2:
+                        if st.button("🔄 Crawl Website"):
+                            with st.spinner(f"Analyzing {website}..."):
+                                crawl_resp = requests.post(f"{API_URL}/institution/{institution['id']}/crawl?max_pages=75")
+                                if crawl_resp.ok:
+                                    st.success("✅ Website analyzed!")
+                                    st.rerun()
+                                else:
+                                    st.error("Analysis failed")
+                
+               # ========== INSTITUTION DOCUMENT UPLOADS ==========
+                st.markdown("---")
+                st.subheader("📄 Institution Documents (Optional)")
+                st.caption("Upload any documents with institutional data - annual reports, fact sheets, strategic plans, etc.")
+                
+                uploaded_docs = st.file_uploader(
+                    "Drop files here",
+                    type=['pdf', 'docx'],
+                    accept_multiple_files=True,
+                    key="inst_docs_upload"
+                )
+                
+                if uploaded_docs:
+                    if st.button(f"📤 Upload {len(uploaded_docs)} document(s)", type="secondary"):
+                        success_count = 0
+                        for doc in uploaded_docs:
+                            files = {'file': (doc.name, doc.getvalue())}
+                            resp = requests.post(
+                                f"{API_URL}/institution/{institution['id']}/document",
+                                files=files
+                            )
+                            if resp.ok:
+                                success_count += 1
+                        if success_count == len(uploaded_docs):
+                            st.success(f"✅ Uploaded {success_count} document(s)!")
+                        else:
+                            st.warning(f"Uploaded {success_count}/{len(uploaded_docs)} documents")
+                
+                # ========== PROGRAMME SELECTION ==========
+                st.markdown("---")
+                st.subheader("🎓 Select Programme")
                 
                 # Fetch programmes for this institution
                 try:
@@ -130,19 +203,17 @@ if mode == "⚙️ Setup":
                     programmes = []
                 
                 if not programmes:
-                    st.info("No programmes found for this institution. Create one using Programme Scraper.")
+                    st.info("No programmes found for this institution. Create one in **Programme Data**.")
                 else:
                     prog_options = {p['programme_name']: p for p in programmes}
                     selected_prog = st.selectbox("Select Programme", list(prog_options.keys()))
                     
                     if st.button("✅ Use This Programme", type="primary"):
                         prog = prog_options[selected_prog]
-                        st.session_state.institution_id = institution['id']
-                        st.session_state.institution_name = institution['name']
                         st.session_state.programme_id = prog['id']
                         st.session_state.programme_name = prog['programme_name']
                         st.success(f"Selected: {prog['programme_name']} at {institution['name']}")
-                        st.rerun()
+                        st.rerun()          
 
 # ============================================================
 # DASHBOARD MODE
@@ -152,16 +223,21 @@ elif mode == "📊 Dashboard":
     
     if 'programme_id' not in st.session_state:
         st.warning("⚠️ Please select a programme in Setup first")
-        pass  # Removed st.stop() to allow tab2 to render
+        st.stop()
     
-    prog_id = st.session_state.programme_id
+    prog_id = st.session_state.get("programme_id")
+
+    if not prog_id:
+        st.info("No programme selected. Please create or select a programme first.")
+        st.stop()
+
     
     # Get status
     status_resp = requests.get(f"{API_URL}/programme/{prog_id}/status")
     
     if not status_resp.ok:
         st.error("Failed to load status")
-        pass  # Removed st.stop() to allow tab2 to render
+        st.stop()
     
     status = status_resp.json()
     
@@ -170,7 +246,7 @@ elif mode == "📊 Dashboard":
     # =========================================================
     # ROW 1: CV COLLECTION (Faculty, Students, Alumni)
     # =========================================================
-    st.subheader("📁 CV Collection")
+    st.subheader("📁 CV datapoints collection")
     
     col1, col2, col3 = st.columns(3)
     
@@ -182,7 +258,7 @@ elif mode == "📊 Dashboard":
         if faculty['complete']:
             st.success("✅ Complete")
         else:
-            st.warning(f"Need {faculty['target'] - faculty['collected']} more")
+            st.warning(f"Upload {faculty['target'] - faculty['collected']} more")
         
         # Faculty stats if available
         if faculty['collected'] > 0:
@@ -199,7 +275,7 @@ elif mode == "📊 Dashboard":
         if students['complete']:
             st.success("✅ Complete")
         else:
-            st.warning(f"Need {students['target'] - students['collected']} more")
+            st.warning(f"Upload {students['target'] - students['collected']} more")
         
         # Student diversity if available
         if students['collected'] > 0:
@@ -216,7 +292,7 @@ elif mode == "📊 Dashboard":
         if alumni['complete']:
             st.success("✅ Complete")
         else:
-            st.warning(f"Need {alumni['target'] - alumni['collected']} more")
+            st.warning(f"Upload {alumni['target'] - alumni['collected']} more")
         
         # Alumni stats if available
         if alumni['collected'] > 0:
@@ -235,15 +311,8 @@ elif mode == "📊 Dashboard":
     # Scraper button
     col_btn, col_spacer = st.columns([1, 3])
     with col_btn:
-        if st.button("🔍 Scrape Programme Website"):
-            with st.spinner("Analyzing programme website..."):
-                resp = requests.post(f"{API_URL}/programme/{prog_id}/scrape")
-                if resp.ok:
-                    result = resp.json()
-                    st.success(f"✅ Found {result['ilos_found']} ILOs!")
-                    st.rerun()
-                else:
-                    st.error(f"Scraping failed: {resp.text}")
+        if st.button("➕ Add more programme data"):
+            st.info("👉 Click **Program data** in the sidebar")
     
     # Programme findings grid
     ilos = status['ilos']
@@ -284,55 +353,72 @@ elif mode == "📊 Dashboard":
     
     st.markdown("---")
     
+
     # =========================================================
-    # ROW 3: READINESS SUMMARY
+    # ROW 3: ACCREDITATION ELIGIBILITY SCORE (Quality-based)
     # =========================================================
     
-    # Calculate overall readiness
-    cv_ready = faculty['complete'] and students['complete'] and alumni['complete']
-    programme_ready = ilos['count'] >= 5
+    # Get quality scores for each category
+    faculty_score = faculty.get('avg_score', 0) if faculty['collected'] > 0 else 0
+    student_score = students.get('avg_score', 0) if students['collected'] > 0 else 0
+    alumni_score = alumni.get('avg_score', 0) if alumni['collected'] > 0 else 0
+    programme_score = status.get("gap_analysis", {}).get('readiness_score', 0) or 0
     
-    if cv_ready and programme_ready:
-        st.success("## ✅ Accreditation Eligibility Score: 100%!")
-        st.balloons()
+    # Calculate overall eligibility score (average of available components)
+    scores_present = []
+    if faculty['collected'] > 0:
+        scores_present.append(faculty_score)
+    if students['collected'] > 0:
+        scores_present.append(student_score)
+    if alumni['collected'] > 0:
+        scores_present.append(alumni_score)
+    if programme_score > 0:
+        scores_present.append(programme_score)
+    
+    eligibility_score = int(sum(scores_present) / len(scores_present)) if scores_present else 0
+    
+    def get_traffic_light(score):
+        if score >= 70:
+            return "🟢", "success"
+        elif score >= 50:
+            return "🟡", "warning"
+        else:
+            return "🔴", "error"
+    
+    light, status = get_traffic_light(eligibility_score)
+    if status == "success":
+        st.success(f"## {light} Accreditation Eligibility Score: {eligibility_score}%")
+    elif status == "warning":
+        st.warning(f"## {light} Accreditation Eligibility Score: {eligibility_score}%")
     else:
-        # Calculate percentage
-        total_items = 4  # Faculty, Students, Alumni, ILOs
-        complete_items = sum([
-            1 if faculty['complete'] else 0,
-            1 if students['complete'] else 0,
-            1 if alumni['complete'] else 0,
-            1 if programme_ready else 0
-        ])
-        readiness_pct = int(complete_items / total_items * 100)
-        
-        st.warning(f"## 🔄 Accreditation Eligibility Score: {readiness_pct}%")
-        
-        # What's missing
-        missing = []
-        if not faculty['complete']:
-            missing.append(f"Faculty CVs ({faculty['target'] - faculty['collected']} more)")
-        if not students['complete']:
-            missing.append(f"Student CVs ({students['target'] - students['collected']} more)")
-        if not alumni['complete']:
-            missing.append(f"Alumni CVs ({alumni['target'] - alumni['collected']} more)")
-        if not programme_ready:
-            missing.append("Programme ILOs (run scraper)")
-        
-        st.markdown("**Still needed:** " + " • ".join(missing))
+        st.error(f"## {light} Accreditation Eligibility Score: {eligibility_score}%")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        light, _ = get_traffic_light(faculty_score)
+        st.metric("Faculty", f"{int(faculty_score)}/100")
+        st.caption(f"{light} PhD, Intl, Research")
+    
+    with col2:
+        light, _ = get_traffic_light(student_score)
+        st.metric("Students", f"{int(student_score)}/100")
+        st.caption(f"{light} Diversity, Experience")
+    
+    with col3:
+        light, _ = get_traffic_light(alumni_score)
+        st.metric("Alumni", f"{int(alumni_score)}/100")
+        st.caption(f"{light} Employment, Careers")
+    
+    with col4:
+        light, _ = get_traffic_light(programme_score)
+        st.metric("Programme", f"{int(programme_score)}/100")
+        st.caption(f"{light} ILOs, Pillars")
+    
+    readiness_pct = eligibility_score
     
     st.markdown("---")
-    # Calculate readiness_pct for routing (need it outside the else block)
-    total_items = 4
-    complete_items = sum([
-        1 if faculty['complete'] else 0,
-        1 if students['complete'] else 0,
-        1 if alumni['complete'] else 0,
-        1 if programme_ready else 0
-    ])
-    readiness_pct = int(complete_items / total_items * 100)
-    
-    st.markdown("---")
+                   
                    
     # Report Routing
     st.subheader("📄 Next Steps")
@@ -389,26 +475,27 @@ elif mode == "📊 Dashboard":
     # =========================================================
     # ROW 5: BASE ROOM & REPORTS (Expandable)
     # =========================================================
-    with st.expander("📁 Base Room Preparation"):
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            if st.button("📥 Get Faculty CV Package"):
-                resp = requests.get(f"{API_URL}/baseroom/faculty/{st.session_state.institution_id}")
-                if resp.ok:
-                    data = resp.json()
-                    st.success(f"✅ {data['ready_for_baseroom']} CVs ready")
-                    for cv in data.get('faculty_cvs', [])[:5]:
-                        st.markdown(f"• [{cv['name']}]({cv['download_url']})")
-        
-        with col2:
-            if st.button("📥 Get Alumni CV Package"):
-                resp = requests.get(f"{API_URL}/baseroom/alumni/{prog_id}")
-                if resp.ok:
-                    data = resp.json()
-                    st.success(f"✅ {data['ready_for_baseroom']} CVs ready")
-                    for cv in data.get('alumni_cvs', [])[:5]:
-                        st.markdown(f"• [{cv['name']}]({cv['download_url']})")
+    if st.session_state.get("show_baseroom", False):
+        with st.expander("📁 Base Room Preparation"):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                if st.button("📥 Get Faculty CV Package"):
+                    resp = requests.get(f"{API_URL}/baseroom/faculty/{st.session_state.institution_id}")
+                    if resp.ok:
+                        data = resp.json()
+                        st.success(f"✅ {data['ready_for_baseroom']} CVs ready")
+                        for cv in data.get('faculty_cvs', [])[:5]:
+                            st.markdown(f"• [{cv['name']}]({cv['download_url']})")
+            
+            with col2:
+                if st.button("📥 Get Alumni CV Package"):
+                    resp = requests.get(f"{API_URL}/baseroom/alumni/{prog_id}")
+                    if resp.ok:
+                        data = resp.json()
+                        st.success(f"✅ {data['ready_for_baseroom']} CVs ready")
+                        for cv in data.get('alumni_cvs', [])[:5]:
+                            st.markdown(f"• [{cv['name']}]({cv['download_url']})")
     
     with st.expander("📋 Generate Reports"):
         col1, col2 = st.columns(2)
@@ -430,12 +517,12 @@ elif mode == "📊 Dashboard":
 # FACULTY UPLOAD MODE
 # ============================================================
 
-elif mode == "👨‍🏫 Faculty Upload":
+elif mode == "👨‍🏫 Faculty CV upload":
     st.title("👨‍🏫 Faculty CV Upload")
     
     if 'institution_id' not in st.session_state:
         st.warning("⚠️ Please select an institution in Setup first")
-        pass  # Removed st.stop() to allow tab2 to render
+        st.stop()
     
     inst_id = st.session_state.institution_id
     
@@ -502,14 +589,19 @@ elif mode == "👨‍🏫 Faculty Upload":
 # STUDENT UPLOAD MODE
 # ============================================================
 
-elif mode == "👨‍🎓 Student Upload":
+elif mode == "👨‍🎓 Students CV upload":
     st.title("👨‍🎓 Student CV Upload")
     
     if 'programme_id' not in st.session_state:
         st.warning("⚠️ Please select a programme in Setup first")
-        pass  # Removed st.stop() to allow tab2 to render
+        st.stop()
     
-    prog_id = st.session_state.programme_id
+    prog_id = st.session_state.get("programme_id")
+
+    if not prog_id:
+        st.info("No programme selected. Please create or select a programme first.")
+        st.stop()
+
     
     # Tabs for bulk vs single upload
     tab_bulk, tab_single = st.tabs(["📁 Bulk Upload (25+ files)", "📄 Single Upload"])
@@ -564,14 +656,19 @@ elif mode == "👨‍🎓 Student Upload":
 # ALUMNI UPLOAD MODE
 # ============================================================
 
-elif mode == "🎯 Alumni Upload":
+elif mode == "🎯 Alumni CV upload":
     st.title("🎯 Alumni CV Upload")
     
     if 'programme_id' not in st.session_state:
         st.warning("⚠️ Please select a programme in Setup first")
-        pass  # Removed st.stop() to allow tab2 to render
+        st.stop()
     
-    prog_id = st.session_state.programme_id
+    prog_id = st.session_state.get("programme_id")
+
+    if not prog_id:
+        st.info("No programme selected. Please create or select a programme first.")
+        st.stop()
+
     
     # Tabs for bulk vs single upload
     tab_bulk, tab_single = st.tabs(["📁 Bulk Upload (25+ files)", "📄 Single Upload"])
@@ -641,8 +738,12 @@ elif mode == "🎯 Alumni Upload":
 # PROGRAMME SCRAPER MODE
 # ============================================================
 
-elif mode == "📄 Programme Scraper":
-    st.title("📄 Programme Document Scraper")
+# ============================================================
+# PROGRAMME DATA MODE
+# ============================================================
+
+elif mode == "📄 Program data":
+    st.title("📄 Programme Data")
     
     # Initialize Supabase connection for this mode
     db_service = None
@@ -661,7 +762,7 @@ elif mode == "📄 Programme Scraper":
     
     with tab1:
         st.markdown("""
-        Analyze programme documents and websites for EFMD gap analysis.
+        Collect programme data for accreditation gap analysis.
         
         **Add URLs and/or upload documents to extract:**
         - Programme ILOs (Intended Learning Outcomes)
@@ -679,8 +780,8 @@ elif mode == "📄 Programme Scraper":
         st.markdown("---")
         
         # URLs Section
-        st.subheader("🌐 URLs to Scrape")
-        st.caption("Add programme pages, study guides, course catalogs (note: JavaScript-heavy sites may not work)")
+        st.subheader("🌐 Programme URLs")
+        st.caption("Add links to programme pages, course catalogs, study guides")
         
         # Initialize session state for URLs
         if 'scraper_urls' not in st.session_state:
@@ -718,30 +819,21 @@ elif mode == "📄 Programme Scraper":
         st.subheader("📁 Upload Documents")
         st.caption("Upload PDF or Word documents (programme handbooks, course catalogs)")
         
-        uploaded_files = st.file_uploader(
-            "Upload documents",
-            type=['pdf', 'docx'],
-            accept_multiple_files=True
-        )
-        
-        if uploaded_files:
-            st.markdown("**Uploaded files:**")
-            for f in uploaded_files:
-                st.markdown(f"- 📄 {f.name}")
-        
-        st.markdown("---")
-        
-        # Save to database checkbox
-        save_to_db = st.checkbox("💾 Save results to database", value=db_connected, disabled=not db_connected)
-        if not db_connected:
-            st.caption(f"⚠️ Database not connected: {db_error if 'db_error' in dir() else 'Unknown error'}")
+        # Text paste option
+        st.markdown("**Or paste text directly:**")
+        pasted_text = st.text_area("Paste programme text here", height=150, placeholder="Copy and paste ILOs, course descriptions, or programme information from the school website...", key="pasted_text_area")
+        if st.button("💾 Save text"):
+            st.session_state.saved_pasted_text = pasted_text
+            st.success("Text saved!")
+        if pasted_text:
+            st.caption(f"✓ {len(pasted_text)} characters ready for analysis")
         
         # Run Analysis Button
         if st.button("🔍 Analyze Programme", type="primary"):
             # Filter empty URLs
             urls = [u.strip() for u in st.session_state.scraper_urls if u.strip()]
             
-            if not urls and not uploaded_files:
+            if not urls and not uploaded_files and not pasted_text:
                 st.error("Please add at least one URL or upload a document")
             else:
                 with st.spinner("Analyzing programme..."):
@@ -756,6 +848,13 @@ elif mode == "📄 Programme Scraper":
                                 temp_path.write(f.getvalue())
                                 temp_path.close()
                                 doc_paths.append(temp_path.name)
+                        
+                        # Save pasted text to temp file
+                        if pasted_text:
+                            temp_txt = tempfile.NamedTemporaryFile(delete=False, suffix=".txt", mode="w")
+                            temp_txt.write(pasted_text)
+                            temp_txt.close()
+                            doc_paths.append(temp_txt.name)
                         
                         # Run scraper
                         scraper = EFMDScraper(use_embeddings=False, use_database=False)
