@@ -218,9 +218,6 @@ if mode == "⚙️ Setup":
 # ============================================================
 # DASHBOARD MODE
 # ============================================================
-# ============================================================
-# DASHBOARD MODE
-# ============================================================
 elif mode == "📊 Dashboard":
     st.title("📊 EFMD Accreditation Dashboard")
     
@@ -237,6 +234,227 @@ elif mode == "📊 Dashboard":
         dashboard_html = f.read()
     
     components.html(dashboard_html, height=3000, scrolling=True)
+# ============================================================
+# FACULTY UPLOAD MODE
+# ============================================================
+
+elif mode == "👨‍🏫 Faculty CV upload":
+    st.title("👨‍🏫 Faculty CV Upload")
+    
+    if 'institution_id' not in st.session_state:
+        st.warning("⚠️ Please select an institution in Setup first")
+        st.stop()
+    
+    inst_id = st.session_state.institution_id
+    
+    # Tabs for bulk vs single upload
+    tab_bulk, tab_single = st.tabs(["📁 Bulk Upload (25+ files)", "📄 Single Upload"])
+    
+    # BULK UPLOAD TAB
+    with tab_bulk:
+        render_bulk_upload(
+            upload_type="faculty",
+            entity_id=inst_id,
+            api_url=API_URL
+        )
+    
+    # SINGLE UPLOAD TAB (existing functionality)
+    with tab_single:
+        st.markdown("""
+        Upload your CV to contribute to EFMD accreditation data collection.
+        
+        **Accepted formats:** PDF, DOCX, TXT
+        
+        Your CV will be analyzed for:
+        - Academic qualifications
+        - Research publications
+        - International experience
+        - Industry connections
+        """)
+        
+        uploaded_file = st.file_uploader("Upload CV", type=['pdf', 'docx', 'txt'], key="faculty_single")
+        
+        if uploaded_file:
+            if st.button("Process CV", type="primary", key="faculty_process"):
+                with st.spinner("Analyzing CV..."):
+                    files = {'file': (uploaded_file.name, uploaded_file.getvalue())}
+                    resp = requests.post(f"{API_URL}/upload/faculty/{inst_id}", files=files)
+                    
+                    if resp.ok:
+                        result = resp.json()
+                        st.success(f"✅ {result['message']}")
+                        
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.metric("EFMD Score", f"{result['efmd_score']}/100")
+                        with col2:
+                            if result['recommended']:
+                                st.success("✅ Recommended for submission")
+                            else:
+                                st.warning("⚠️ May not be selected")
+                        
+                        if result.get('strengths'):
+                            st.markdown("**Strengths:**")
+                            for s in result['strengths']:
+                                st.markdown(f"- ✅ {s}")
+                        
+                        if result.get('risks'):
+                            st.markdown("**Areas for improvement:**")
+                            for r in result['risks']:
+                                st.markdown(f"- ⚠️ {r}")
+                    else:
+                        st.error(f"Error: {resp.text}")
+
+
+# ============================================================
+# STUDENT UPLOAD MODE
+# ============================================================
+
+elif mode == "👨‍🎓 Students CV upload":
+    st.title("👨‍🎓 Student CV Upload")
+    
+    if 'programme_id' not in st.session_state:
+        st.warning("⚠️ Please select a programme in Setup first")
+        st.stop()
+    
+    prog_id = st.session_state.get("programme_id")
+
+    if not prog_id:
+        st.info("No programme selected. Please create or select a programme first.")
+        st.stop()
+
+    
+    # Tabs for bulk vs single upload
+    tab_bulk, tab_single = st.tabs(["📁 Bulk Upload (25+ files)", "📄 Single Upload"])
+    
+    # BULK UPLOAD TAB
+    with tab_bulk:
+        render_bulk_upload(
+            upload_type="student",
+            entity_id=prog_id,
+            api_url=API_URL
+        )
+    
+    # SINGLE UPLOAD TAB
+    with tab_single:
+        st.markdown("""
+        Upload your CV to contribute to EFMD accreditation data.
+        
+        We analyze:
+        - Nationality and background
+        - Prior education
+        - Work experience
+        - Language skills
+        """)
+        
+        cohort_year = st.number_input("Cohort Year", min_value=2020, max_value=2030, value=datetime.now().year, key="student_cohort")
+        
+        uploaded_file = st.file_uploader("Upload CV", type=['pdf', 'docx', 'txt'], key="student_single")
+        
+        if uploaded_file:
+            if st.button("Process CV", type="primary", key="student_process"):
+                with st.spinner("Analyzing CV..."):
+                    files = {'file': (uploaded_file.name, uploaded_file.getvalue())}
+                    resp = requests.post(
+                        f"{API_URL}/upload/student/{prog_id}?cohort_year={cohort_year}",
+                        files=files
+                    )
+                    
+                    if resp.ok:
+                        result = resp.json()
+                        st.success(f"✅ {result['message']}")
+                        
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.metric("EFMD Score", f"{result['efmd_score']}/100")
+                        with col2:
+                            st.metric("Nationality", result.get('nationality', 'Unknown'))
+                    else:
+                        st.error(f"Error: {resp.text}")
+
+
+# ============================================================
+# ALUMNI UPLOAD MODE
+# ============================================================
+
+elif mode == "🎯 Alumni CV upload":
+    st.title("🎯 Alumni CV Upload")
+    
+    if 'programme_id' not in st.session_state:
+        st.warning("⚠️ Please select a programme in Setup first")
+        st.stop()
+    
+    prog_id = st.session_state.get("programme_id")
+
+    if not prog_id:
+        st.info("No programme selected. Please create or select a programme first.")
+        st.stop()
+
+    
+    # Tabs for bulk vs single upload
+    tab_bulk, tab_single = st.tabs(["📁 Bulk Upload (25+ files)", "📄 Single Upload"])
+    
+    # BULK UPLOAD TAB
+    with tab_bulk:
+        st.markdown("---")
+        default_grad_year = st.number_input(
+            "Default Graduation Year (applies to all files in batch)", 
+            min_value=2015, 
+            max_value=2030, 
+            value=2023,
+            key="alumni_bulk_grad_year",
+            help="All CVs in this batch will be tagged with this graduation year. For mixed years, use single upload."
+        )
+        st.info(f"📅 All CVs will be tagged with graduation year: **{default_grad_year}**")
+        
+        render_bulk_upload(
+            upload_type="alumni",
+            entity_id=prog_id,
+            api_url=API_URL,
+            graduation_year=default_grad_year
+        )
+    
+    # SINGLE UPLOAD TAB
+    with tab_single:
+        st.markdown("""
+        Upload your CV to help demonstrate programme outcomes.
+        
+        We analyze:
+        - Time to employment after graduation
+        - Employer quality (MBB, Big 4, Fortune 500, etc.)
+        - Career progression
+        - Salary indicators
+        """)
+        
+        graduation_year = st.number_input("Graduation Year", min_value=2015, max_value=2030, value=2023, key="alumni_single_grad")
+        
+        uploaded_file = st.file_uploader("Upload CV", type=['pdf', 'docx', 'txt'], key="alumni_single")
+        
+        if uploaded_file:
+            if st.button("Process CV", type="primary", key="alumni_process"):
+                with st.spinner("Analyzing CV..."):
+                    files = {'file': (uploaded_file.name, uploaded_file.getvalue())}
+                    resp = requests.post(
+                        f"{API_URL}/upload/alumni/{prog_id}?graduation_year={graduation_year}",
+                        files=files
+                    )
+                    
+                    if resp.ok:
+                        result = resp.json()
+                        st.success(f"✅ {result['message']}")
+                        
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.metric("EFMD Score", f"{result['efmd_score']}/100")
+                        with col2:
+                            st.metric("Current Employer", result.get('employer', 'Unknown'))
+                        
+                        if result.get('strengths'):
+                            st.markdown("**Career Highlights:**")
+                            for s in result['strengths']:
+                                st.markdown(f"- ✅ {s}")
+                    else:
+                        st.error(f"Error: {resp.text}")
 # ============================================================
 # PROGRAMME SCRAPER MODE
 # ============================================================
