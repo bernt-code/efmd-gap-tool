@@ -539,6 +539,7 @@ elif mode == "📄 Program data":
         # Document Upload Section
         st.subheader("📁 Upload Documents")
         st.caption("Upload PDF or Word documents (programme handbooks, course catalogs)")
+        uploaded_files = st.file_uploader("Choose files", type=["pdf", "docx"], accept_multiple_files=True)
         
         # Text paste option
         st.markdown("**Or paste text directly:**")
