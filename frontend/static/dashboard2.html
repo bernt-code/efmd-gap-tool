@@ -31,34 +31,51 @@
         }
 
         .header {
-            background: var(--bg-secondary);
+            background: linear-gradient(135deg, #1a1f35 0%, #0d1117 100%);
             border-bottom: 1px solid var(--border);
-            padding: 1rem 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            padding: 2rem;
+            text-align: center;
         }
 
-        .header h1 {
-            font-size: 1.25rem;
-            font-weight: 600;
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
         }
 
-        .header h1 span { color: var(--text-secondary); font-weight: 400; }
+        .institution-name {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+        }
 
-        .programme-badge {
-            background: var(--bg-tertiary);
-            border: 1px solid var(--border);
-            padding: 0.5rem 1rem;
-            border-radius: 6px;
-            font-size: 0.875rem;
+        .programme-name {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(90deg, #58a6ff, #a371f7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }
+
+        .programme-subtitle {
+            font-size: 1rem;
             color: var(--text-secondary);
         }
 
         .container {
-            max-width: 960px;
+            max-width: 1200px;
             margin: 0 auto;
             padding: 2rem;
+        }
+
+        @media (max-width: 768px) {
+            .container { padding: 1rem; }
+            .programme-name { font-size: 1.75rem; }
+            .overall-score { flex-direction: column; gap: 1rem; text-align: center; }
+            .overall-right { justify-content: center; }
         }
 
         /* Overall Score */
@@ -89,6 +106,89 @@
         .overall-score .score.yellow { color: var(--yellow); }
         .overall-score .score.green { color: var(--green); }
         .overall-score .score.red { color: var(--red); }
+        .score-tagline {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+            font-style: italic;
+        }
+
+        /* Eligibility Scale - Full Width */
+        .eligibility-scale-container {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem 2rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .scale-bar {
+            position: relative;
+            height: 16px;
+            border-radius: 8px;
+            display: flex;
+            overflow: hidden;
+            background: var(--bg-tertiary);
+        }
+
+        .scale-segment { height: 100%; }
+        .scale-segment.red { background: var(--red); }
+        .scale-segment.yellow { background: var(--yellow); }
+        .scale-segment.green-3 { background: #2ea043; }
+        .scale-segment.green-5 { background: var(--green); }
+
+        .scale-marker {
+            position: absolute;
+            top: -6px;
+            width: 6px;
+            height: 28px;
+            background: var(--text-primary);
+            border-radius: 3px;
+            transform: translateX(-50%);
+            box-shadow: 0 0 12px rgba(255,255,255,0.6);
+        }
+
+        .scale-labels {
+            position: relative;
+            height: 20px;
+            margin-top: 0.5rem;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .scale-labels span {
+            position: absolute;
+            transform: translateX(-50%);
+        }
+
+        .scale-labels span[style*="left: 0"] { transform: none; }
+        .scale-labels span[style*="left: 100%"] { transform: translateX(-100%); }
+
+        .scale-legend {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-top: 1rem;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .scale-legend .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .scale-legend .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .scale-legend .dot.red { background: var(--red); }
+        .scale-legend .dot.yellow { background: var(--yellow); }
+        .scale-legend .dot.green-3 { background: #2ea043; }
+        .scale-legend .dot.green-5 { background: var(--green); }
 
         .overall-right { display: flex; gap: 1.5rem; }
 
@@ -473,10 +573,13 @@
 </head>
 <body>
 
-<header class="header">
-    <h1>EFMD Gap Tool <span>Dashboard</span></h1>
-    <div class="programme-badge">Finance MSc — University of Vaasa</div>
-</header>
+    <header class="header">
+        <div class="header-content">
+            <div class="institution-name">University of Vaasa</div>
+            <div class="programme-name">MSc Finance</div>
+            <div class="programme-subtitle">EFMD Programme Accreditation Eligibility Application Score</div>
+        </div>
+    </header>
 
 <div class="container">
 
@@ -485,6 +588,7 @@
         <div class="overall-left">
             <h2>Eligibility Score</h2>
             <div class="score yellow">58%</div>
+            <div class="score-tagline">Based on 80% of the input needed for the 16-page Annex 1 report</div>
         </div>
         <div class="overall-right">
             <div class="mini-score">
