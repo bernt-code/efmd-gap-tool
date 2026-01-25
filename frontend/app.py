@@ -551,6 +551,7 @@ elif mode == "📄 Program data":
             st.caption(f"✓ {len(pasted_text)} characters ready for analysis")
         
         # Run Analysis Button
+        save_to_db = st.checkbox("Save to database", value=True)
         if st.button("🔍 Analyze Programme", type="primary"):
             # Filter empty URLs
             urls = [u.strip() for u in st.session_state.scraper_urls if u.strip()]
