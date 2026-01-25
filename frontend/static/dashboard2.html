@@ -1,0 +1,2714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EFMD Gap Tool - Dashboard 2</title>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #21262d;
+            --border: #30363d;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --text-muted: #6e7681;
+            --green: #238636;
+            --yellow: #d29922;
+            --red: #da3633;
+            --blue: #58a6ff;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'IBM Plex Sans', -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.5;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .header h1 span { color: var(--text-secondary); font-weight: 400; }
+
+        .programme-badge {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Overall Score */
+        .overall-score {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem 2rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .overall-left h2 {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+        }
+
+        .overall-score .score {
+            font-size: 3rem;
+            font-weight: 700;
+            font-family: 'IBM Plex Mono', monospace;
+        }
+
+        .overall-score .score.yellow { color: var(--yellow); }
+        .overall-score .score.green { color: var(--green); }
+        .overall-score .score.red { color: var(--red); }
+
+        .overall-right { display: flex; gap: 1.5rem; }
+
+        .mini-score { text-align: center; }
+        .mini-score .label { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem; }
+        .mini-score .value { font-family: 'IBM Plex Mono', monospace; font-size: 1.25rem; font-weight: 600; }
+
+        /* Traffic Light Indicators - ROUND */
+        .indicator {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            font-size: 0.75rem;
+            font-weight: 700;
+            font-family: 'IBM Plex Mono', monospace;
+            flex-shrink: 0;
+        }
+
+        .indicator-sm {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            font-size: 0.65rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .indicator.green, .indicator-sm.green { background: var(--green); color: white; }
+        .indicator.yellow, .indicator-sm.yellow { background: var(--yellow); color: #000; }
+        .indicator.red, .indicator-sm.red { background: var(--red); color: white; }
+        .indicator.na, .indicator-sm.na { background: var(--bg-tertiary); border: 1px solid var(--border); color: var(--text-muted); }
+
+        /* Source Badges */
+        .source-badge {
+            font-size: 0.65rem;
+            padding: 0.125rem 0.4rem;
+            border-radius: 3px;
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-left: 0.5rem;
+        }
+
+        .source-badge.cv { background: rgba(88, 166, 255, 0.2); color: var(--blue); }
+        .source-badge.doc { background: rgba(35, 134, 54, 0.2); color: var(--green); }
+        .source-badge.web { background: rgba(210, 153, 34, 0.2); color: var(--yellow); }
+
+        /* Level 1 - Category */
+        .category {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            margin-bottom: 0.75rem;
+            overflow: hidden;
+        }
+
+        .category-header {
+            padding: 1rem 1.25rem;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .category-header:hover { background: var(--bg-tertiary); }
+
+        .category-title {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex: 1;
+        }
+
+        .category-title h3 { font-size: 1rem; font-weight: 600; }
+
+        .category-score {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-family: 'IBM Plex Mono', monospace;
+            color: var(--text-secondary);
+        }
+
+        .expand-arrow {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            transition: transform 0.2s;
+            margin-left: 0.5rem;
+        }
+
+        .category.expanded > .category-header .expand-arrow { transform: rotate(180deg); }
+
+        /* Level 2 - Criteria */
+        .criteria-list {
+            display: none;
+            border-top: 1px solid var(--border);
+        }
+
+        .category.expanded > .criteria-list { display: block; }
+
+        .criterion {
+            padding: 0.75rem 1.25rem 0.75rem 3.5rem;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .criterion:hover { background: rgba(255,255,255,0.02); }
+
+        .criterion-code {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            width: 45px;
+            flex-shrink: 0;
+        }
+
+        .criterion-name {
+            flex: 1;
+            font-size: 0.9rem;
+        }
+
+        .criterion-value {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-right: 0.75rem;
+            text-align: right;
+            min-width: 80px;
+        }
+
+        /* Sub-metrics under criteria */
+        .sub-metrics {
+            display: none;
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .criterion.expanded + .sub-metrics { display: block; }
+
+        .sub-metric {
+            padding: 0.5rem 1.25rem 0.5rem 5.5rem;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.85rem;
+        }
+
+        .sub-metric:last-child { border-bottom: none; }
+
+        .sub-metric-name {
+            flex: 1;
+            color: var(--text-secondary);
+        }
+
+        .sub-metric-value {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-right: 0.75rem;
+            min-width: 70px;
+            text-align: right;
+        }
+
+        .sub-metric-target {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            min-width: 80px;
+        }
+
+        /* Level 3 - Individual List */
+        .individual-list-header {
+            padding: 0.75rem 1.25rem 0.75rem 3.5rem;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border);
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .individual-list-header:hover { color: var(--text-secondary); }
+
+        .individual-list-header span:first-child { flex: 1; }
+
+        .individuals {
+            display: none;
+            background: var(--bg-primary);
+        }
+
+        .individual-list-header.expanded + .individuals { display: block; }
+
+        .individual-row {
+            padding: 0.625rem 1.25rem 0.625rem 4.5rem;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .individual-row:hover { background: rgba(255,255,255,0.02); }
+
+        .individual-name {
+            flex: 1;
+            font-size: 0.875rem;
+            margin-left: 0.75rem;
+        }
+
+        .individual-tag {
+            font-size: 0.7rem;
+            padding: 0.125rem 0.5rem;
+            border-radius: 4px;
+            background: var(--bg-tertiary);
+            color: var(--text-muted);
+            margin-left: 0.5rem;
+        }
+
+        .individual-score {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-right: 0.75rem;
+        }
+
+        .cv-btn {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            transition: all 0.15s;
+        }
+
+        .cv-btn:hover { border-color: var(--blue); color: var(--blue); }
+
+        /* Level 4 - Individual Detail */
+        .individual-detail {
+            display: none;
+            background: var(--bg-tertiary);
+            margin: 0 1.25rem 0.5rem 4.5rem;
+            padding: 0.75rem;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+        }
+
+        .individual-row.expanded + .individual-detail { display: block; }
+
+        .detail-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.5rem;
+        }
+
+        .detail-list {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.25rem 1rem;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.35rem 0.5rem;
+            background: var(--bg-secondary);
+            border-radius: 4px;
+            font-size: 0.8rem;
+        }
+
+        .detail-row span:first-child {
+            color: var(--text-muted);
+        }
+
+        .detail-row span:last-child {
+            font-family: 'IBM Plex Mono', monospace;
+        }
+
+        .detail-row .checkmark {
+            color: var(--green) !important;
+        }
+
+        .detail-row .cross {
+            color: var(--red) !important;
+        }
+
+        .detail-item {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 0.75rem;
+            background: var(--bg-secondary);
+            border-radius: 4px;
+            font-size: 0.8rem;
+        }
+
+        .detail-item .indicator-sm { margin-right: 0.5rem; }
+
+        .detail-label {
+            color: var(--text-muted);
+            margin-right: 0.5rem;
+        }
+
+        .detail-value {
+            flex: 1;
+            text-align: right;
+            color: var(--text-secondary);
+        }
+
+        /* Institutional notice */
+        .institutional-notice {
+            padding: 0.75rem 1.25rem 0.75rem 3.5rem;
+            background: rgba(210, 153, 34, 0.05);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        /* Resources */
+        .resources {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1.25rem;
+            margin-top: 1.5rem;
+        }
+
+        .resources h3 {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+        }
+
+        .resource-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.75rem;
+        }
+
+        .resource-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .resource-btn:hover { border-color: var(--blue); background: rgba(88, 166, 255, 0.1); }
+
+        /* Legend */
+        .legend {
+            display: flex;
+            gap: 1.5rem;
+            padding: 1rem 0;
+            margin-top: 1rem;
+            border-top: 1px solid var(--border);
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .legend-item { display: flex; align-items: center; gap: 0.5rem; }
+    </style>
+</head>
+<body>
+
+<header class="header">
+    <h1>EFMD Gap Tool <span>Dashboard</span></h1>
+    <div class="programme-badge">Finance MSc — University of Vaasa</div>
+</header>
+
+<div class="container">
+
+    <!-- Overall Score -->
+    <div class="overall-score">
+        <div class="overall-left">
+            <h2>Eligibility Score</h2>
+            <div class="score yellow">58%</div>
+        </div>
+        <div class="overall-right">
+            <div class="mini-score">
+                <div class="label">Faculty</div>
+                <div class="value" style="color: var(--green)">60</div>
+            </div>
+            <div class="mini-score">
+                <div class="label">Students</div>
+                <div class="value" style="color: var(--yellow)">52</div>
+            </div>
+            <div class="mini-score">
+                <div class="label">Alumni</div>
+                <div class="value" style="color: var(--yellow)">44</div>
+            </div>
+            <div class="mini-score">
+                <div class="label">Programme</div>
+                <div class="value" style="color: var(--green)">84</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!-- FACULTY - 6 CV Criteria + List -->
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <div class="category expanded" id="faculty">
+        <div class="category-header" onclick="toggleCategory('faculty')">
+            <div class="category-title">
+                <div class="indicator yellow">!</div>
+                <h3>Faculty</h3>
+                <span class="source-badge cv">CV</span>
+            </div>
+            <div class="category-score">
+                60/100
+                <span class="expand-arrow">▼</span>
+            </div>
+        </div>
+
+        <div class="criteria-list">
+            <!-- 1.3.1 Qualifications - no sub-metrics -->
+            <div class="criterion">
+                <span class="criterion-code">1.3.1</span>
+                <span class="criterion-name">Qualifications</span>
+                <span class="criterion-value">88% PhD</span>
+                <div class="indicator-sm green">5</div>
+            </div>
+
+            <!-- 1.3.2 Research Output - with sub-metrics -->
+            <div class="criterion" onclick="this.classList.toggle('expanded')">
+                <span class="criterion-code">1.3.2</span>
+                <span class="criterion-name">Research Output</span>
+                <span class="criterion-value">4.2 avg</span>
+                <div class="indicator-sm green">5</div>
+            </div>
+            <div class="sub-metrics">
+                <div class="sub-metric">
+                    <div class="indicator-sm green">5</div>
+                    <span class="sub-metric-name">Total publications</span>
+                    <span class="sub-metric-value">4.2 avg</span>
+                    <span class="sub-metric-target">per faculty</span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm green">5</div>
+                    <span class="sub-metric-name">Peer-reviewed</span>
+                    <span class="sub-metric-value">3.1 avg</span>
+                    <span class="sub-metric-target">journals</span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm green">3</div>
+                    <span class="sub-metric-name">Last 5 years</span>
+                    <span class="sub-metric-value">78%</span>
+                    <span class="sub-metric-target">recent</span>
+                </div>
+            </div>
+
+            <!-- 1.3.4 International - with sub-metrics -->
+            <div class="criterion" onclick="this.classList.toggle('expanded')">
+                <span class="criterion-code">1.3.4</span>
+                <span class="criterion-name">International</span>
+                <span class="criterion-value">45%</span>
+                <div class="indicator-sm green">3</div>
+            </div>
+            <div class="sub-metrics">
+                <div class="sub-metric">
+                    <div class="indicator-sm green">3</div>
+                    <span class="sub-metric-name">International degree</span>
+                    <span class="sub-metric-value">32%</span>
+                    <span class="sub-metric-target">target 30%</span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm green">3</div>
+                    <span class="sub-metric-name">Worked abroad</span>
+                    <span class="sub-metric-value">45%</span>
+                    <span class="sub-metric-target">target 40%</span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm yellow">!</div>
+                    <span class="sub-metric-name">Visiting positions</span>
+                    <span class="sub-metric-value">18%</span>
+                    <span class="sub-metric-target">target 25%</span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm green">3</div>
+                    <span class="sub-metric-name">Nationalities</span>
+                    <span class="sub-metric-value">6</span>
+                    <span class="sub-metric-target">diverse</span>
+                </div>
+            </div>
+
+            <!-- 1.3.5 Practice - with sub-metrics -->
+            <div class="criterion" onclick="this.classList.toggle('expanded')">
+                <span class="criterion-code">1.3.5</span>
+                <span class="criterion-name">Practice</span>
+                <span class="criterion-value">22%</span>
+                <div class="indicator-sm yellow">!</div>
+            </div>
+            <div class="sub-metrics">
+                <div class="sub-metric">
+                    <div class="indicator-sm yellow">!</div>
+                    <span class="sub-metric-name">Industry exp 3+ yr</span>
+                    <span class="sub-metric-value">22%</span>
+                    <span class="sub-metric-target">target 30%</span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm yellow">!</div>
+                    <span class="sub-metric-name">Active consulting</span>
+                    <span class="sub-metric-value">15%</span>
+                    <span class="sub-metric-target">target 25%</span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm red">✕</div>
+                    <span class="sub-metric-name">Board memberships</span>
+                    <span class="sub-metric-value">8%</span>
+                    <span class="sub-metric-target">target 15%</span>
+                </div>
+            </div>
+
+            <!-- 1.3.6 ERS - with sub-metrics -->
+            <div class="criterion" onclick="this.classList.toggle('expanded')">
+                <span class="criterion-code">1.3.6</span>
+                <span class="criterion-name">ERS Engagement</span>
+                <span class="criterion-value">13%</span>
+                <div class="indicator-sm red">✕</div>
+            </div>
+            <div class="sub-metrics">
+                <div class="sub-metric">
+                    <div class="indicator-sm red">✕</div>
+                    <span class="sub-metric-name">ERS research</span>
+                    <span class="sub-metric-value">10%</span>
+                    <span class="sub-metric-target">target 25%</span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm red">✕</div>
+                    <span class="sub-metric-name">ERS teaching</span>
+                    <span class="sub-metric-value">5%</span>
+                    <span class="sub-metric-target">target 20%</span>
+                </div>
+            </div>
+
+            <!-- Faculty List - Level 3 -->
+            <div class="individual-list-header" onclick="this.classList.toggle('expanded')">
+                <span>Faculty List (27 CVs → Top 25)</span>
+                <span class="expand-arrow">▼</span>
+            </div>
+            <div class="individuals">
+                <!-- 1. Lisa Mäkinen - 78 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm green">5</div>
+                    <span class="individual-name">Lisa Mäkinen</span>
+                    <span class="individual-tag">PhD</span>
+                    <span class="individual-score">78 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>PhD</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Publications</span><span>18</span></div>
+                        <div class="detail-row"><span>Peer-reviewed</span><span>15</span></div>
+                        <div class="detail-row"><span>Last 5 years</span><span>12</span></div>
+                        <div class="detail-row"><span>International degree</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Worked abroad</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Visiting positions</span><span>0</span></div>
+                        <div class="detail-row"><span>Industry exp 3+ yr</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Active consulting</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Board memberships</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>ERS research</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>ERS teaching</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 2. Adam Smale - 76 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm green">5</div>
+                    <span class="individual-name">Adam Smale</span>
+                    <span class="individual-tag">PhD</span>
+                    <span class="individual-score">76 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>PhD</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Publications</span><span>12</span></div>
+                        <div class="detail-row"><span>Peer-reviewed</span><span>8</span></div>
+                        <div class="detail-row"><span>Last 5 years</span><span>9</span></div>
+                        <div class="detail-row"><span>International degree</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Worked abroad</span><span>UK, USA, DE</span></div>
+                        <div class="detail-row"><span>Visiting positions</span><span>2</span></div>
+                        <div class="detail-row"><span>Industry exp 3+ yr</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Active consulting</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Board memberships</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>ERS research</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>ERS teaching</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 3. Johan Virtanen - 74 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm green">5</div>
+                    <span class="individual-name">Johan Virtanen</span>
+                    <span class="individual-tag">PhD</span>
+                    <span class="individual-score">74 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>PhD</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Publications</span><span>14</span></div>
+                        <div class="detail-row"><span>Peer-reviewed</span><span>11</span></div>
+                        <div class="detail-row"><span>Last 5 years</span><span>8</span></div>
+                        <div class="detail-row"><span>International degree</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Worked abroad</span><span>SE</span></div>
+                        <div class="detail-row"><span>Visiting positions</span><span>1</span></div>
+                        <div class="detail-row"><span>Industry exp 3+ yr</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Active consulting</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Board memberships</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>ERS research</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>ERS teaching</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 4. Sanna Järvinen - 72 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm green">5</div>
+                    <span class="individual-name">Sanna Järvinen</span>
+                    <span class="individual-tag">PhD</span>
+                    <span class="individual-score">72 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>PhD</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Publications</span><span>16</span></div>
+                        <div class="detail-row"><span>Peer-reviewed</span><span>12</span></div>
+                        <div class="detail-row"><span>Last 5 years</span><span>10</span></div>
+                        <div class="detail-row"><span>International degree</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Worked abroad</span><span>NL</span></div>
+                        <div class="detail-row"><span>Visiting positions</span><span>1</span></div>
+                        <div class="detail-row"><span>Industry exp 3+ yr</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Active consulting</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Board memberships</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>ERS research</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>ERS teaching</span><span class="checkmark">✓</span></div>
+                    </div>
+                </div>
+
+                <!-- 5. Mikko Lahtinen - 71 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm green">5</div>
+                    <span class="individual-name">Mikko Lahtinen</span>
+                    <span class="individual-tag">PhD</span>
+                    <span class="individual-score">71 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>PhD</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Publications</span><span>10</span></div>
+                        <div class="detail-row"><span>Peer-reviewed</span><span>7</span></div>
+                        <div class="detail-row"><span>Last 5 years</span><span>6</span></div>
+                        <div class="detail-row"><span>International degree</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Worked abroad</span><span>UK, DE</span></div>
+                        <div class="detail-row"><span>Visiting positions</span><span>2</span></div>
+                        <div class="detail-row"><span>Industry exp 3+ yr</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Active consulting</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Board memberships</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>ERS research</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>ERS teaching</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 6. Katri Nieminen - 70 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm green">5</div>
+                    <span class="individual-name">Katri Nieminen</span>
+                    <span class="individual-tag">PhD</span>
+                    <span class="individual-score">70 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>PhD</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Publications</span><span>11</span></div>
+                        <div class="detail-row"><span>Peer-reviewed</span><span>9</span></div>
+                        <div class="detail-row"><span>Last 5 years</span><span>7</span></div>
+                        <div class="detail-row"><span>International degree</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Worked abroad</span><span>US</span></div>
+                        <div class="detail-row"><span>Visiting positions</span><span>1</span></div>
+                        <div class="detail-row"><span>Industry exp 3+ yr</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Active consulting</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Board memberships</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>ERS research</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>ERS teaching</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 7. Pekka Korhonen - 68 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm green">3</div>
+                    <span class="individual-name">Pekka Korhonen</span>
+                    <span class="individual-tag">PhD</span>
+                    <span class="individual-score">68 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>PhD</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Publications</span><span>9</span></div>
+                        <div class="detail-row"><span>Peer-reviewed</span><span>6</span></div>
+                        <div class="detail-row"><span>Last 5 years</span><span>5</span></div>
+                        <div class="detail-row"><span>International degree</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Worked abroad</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Visiting positions</span><span>0</span></div>
+                        <div class="detail-row"><span>Industry exp 3+ yr</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Active consulting</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Board memberships</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>ERS research</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>ERS teaching</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 8. Helena Rantanen - 66 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm green">3</div>
+                    <span class="individual-name">Helena Rantanen</span>
+                    <span class="individual-tag">PhD</span>
+                    <span class="individual-score">66 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>PhD</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Publications</span><span>8</span></div>
+                        <div class="detail-row"><span>Peer-reviewed</span><span>5</span></div>
+                        <div class="detail-row"><span>Last 5 years</span><span>4</span></div>
+                        <div class="detail-row"><span>International degree</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Worked abroad</span><span>NO</span></div>
+                        <div class="detail-row"><span>Visiting positions</span><span>1</span></div>
+                        <div class="detail-row"><span>Industry exp 3+ yr</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Active consulting</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Board memberships</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>ERS research</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>ERS teaching</span><span class="checkmark">✓</span></div>
+                    </div>
+                </div>
+
+                <!-- 9. Jari Salonen - 64 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm green">3</div>
+                    <span class="individual-name">Jari Salonen</span>
+                    <span class="individual-tag">PhD</span>
+                    <span class="individual-score">64 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>PhD</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Publications</span><span>7</span></div>
+                        <div class="detail-row"><span>Peer-reviewed</span><span>4</span></div>
+                        <div class="detail-row"><span>Last 5 years</span><span>3</span></div>
+                        <div class="detail-row"><span>International degree</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Worked abroad</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Visiting positions</span><span>0</span></div>
+                        <div class="detail-row"><span>Industry exp 3+ yr</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Active consulting</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Board memberships</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>ERS research</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>ERS teaching</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 10. Maria Korhonen - 62 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm green">3</div>
+                    <span class="individual-name">Maria Korhonen</span>
+                    <span class="individual-tag">PhD</span>
+                    <span class="individual-score">62 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>PhD</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Publications</span><span>6</span></div>
+                        <div class="detail-row"><span>Peer-reviewed</span><span>4</span></div>
+                        <div class="detail-row"><span>Last 5 years</span><span>4</span></div>
+                        <div class="detail-row"><span>International degree</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Worked abroad</span><span>UK</span></div>
+                        <div class="detail-row"><span>Visiting positions</span><span>0</span></div>
+                        <div class="detail-row"><span>Industry exp 3+ yr</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Active consulting</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Board memberships</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>ERS research</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>ERS teaching</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 11. Erik Lindqvist - 60 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm green">3</div>
+                    <span class="individual-name">Erik Lindqvist</span>
+                    <span class="individual-tag">PhD</span>
+                    <span class="individual-score">60 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>PhD</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Publications</span><span>5</span></div>
+                        <div class="detail-row"><span>Peer-reviewed</span><span>3</span></div>
+                        <div class="detail-row"><span>Last 5 years</span><span>3</span></div>
+                        <div class="detail-row"><span>International degree</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Worked abroad</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Visiting positions</span><span>0</span></div>
+                        <div class="detail-row"><span>Industry exp 3+ yr</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Active consulting</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Board memberships</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>ERS research</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>ERS teaching</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 12. Anni Heikkinen - 58 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm yellow">!</div>
+                    <span class="individual-name">Anni Heikkinen</span>
+                    <span class="individual-tag">PhD</span>
+                    <span class="individual-score">58 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>PhD</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Publications</span><span>4</span></div>
+                        <div class="detail-row"><span>Peer-reviewed</span><span>2</span></div>
+                        <div class="detail-row"><span>Last 5 years</span><span>2</span></div>
+                        <div class="detail-row"><span>International degree</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Worked abroad</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Visiting positions</span><span>0</span></div>
+                        <div class="detail-row"><span>Industry exp 3+ yr</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Active consulting</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Board memberships</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>ERS research</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>ERS teaching</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 13. Tuomas Koski - 56 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm yellow">!</div>
+                    <span class="individual-name">Tuomas Koski</span>
+                    <span class="individual-tag">PhD</span>
+                    <span class="individual-score">56 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>PhD</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Publications</span><span>5</span></div>
+                        <div class="detail-row"><span>Peer-reviewed</span><span>3</span></div>
+                        <div class="detail-row"><span>Last 5 years</span><span>2</span></div>
+                        <div class="detail-row"><span>International degree</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Worked abroad</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Visiting positions</span><span>0</span></div>
+                        <div class="detail-row"><span>Industry exp 3+ yr</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Active consulting</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Board memberships</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>ERS research</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>ERS teaching</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 14. Riikka Peltonen - 54 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm yellow">!</div>
+                    <span class="individual-name">Riikka Peltonen</span>
+                    <span class="individual-tag">PhD</span>
+                    <span class="individual-score">54 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>PhD</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Publications</span><span>4</span></div>
+                        <div class="detail-row"><span>Peer-reviewed</span><span>2</span></div>
+                        <div class="detail-row"><span>Last 5 years</span><span>2</span></div>
+                        <div class="detail-row"><span>International degree</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Worked abroad</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Visiting positions</span><span>0</span></div>
+                        <div class="detail-row"><span>Industry exp 3+ yr</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Active consulting</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Board memberships</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>ERS research</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>ERS teaching</span><span class="checkmark">✓</span></div>
+                    </div>
+                </div>
+
+                <!-- 15. Olli Hämäläinen - 52 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm yellow">!</div>
+                    <span class="individual-name">Olli Hämäläinen</span>
+                    <span class="individual-tag">PhD</span>
+                    <span class="individual-score">52 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>PhD</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Publications</span><span>3</span></div>
+                        <div class="detail-row"><span>Peer-reviewed</span><span>2</span></div>
+                        <div class="detail-row"><span>Last 5 years</span><span>2</span></div>
+                        <div class="detail-row"><span>International degree</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Worked abroad</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Visiting positions</span><span>0</span></div>
+                        <div class="detail-row"><span>Industry exp 3+ yr</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Active consulting</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Board memberships</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>ERS research</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>ERS teaching</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 16. Elina Mäkelä - 50 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm yellow">!</div>
+                    <span class="individual-name">Elina Mäkelä</span>
+                    <span class="individual-tag">PhD</span>
+                    <span class="individual-score">50 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>PhD</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Publications</span><span>3</span></div>
+                        <div class="detail-row"><span>Peer-reviewed</span><span>1</span></div>
+                        <div class="detail-row"><span>Last 5 years</span><span>1</span></div>
+                        <div class="detail-row"><span>International degree</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Worked abroad</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Visiting positions</span><span>0</span></div>
+                        <div class="detail-row"><span>Industry exp 3+ yr</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Active consulting</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Board memberships</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>ERS research</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>ERS teaching</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 17. Markus Laine - 48 pts (MSc with strong practice) -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm yellow">!</div>
+                    <span class="individual-name">Markus Laine</span>
+                    <span class="individual-tag">MSc</span>
+                    <span class="individual-score">48 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>PhD</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Publications</span><span>2</span></div>
+                        <div class="detail-row"><span>Peer-reviewed</span><span>0</span></div>
+                        <div class="detail-row"><span>Last 5 years</span><span>1</span></div>
+                        <div class="detail-row"><span>International degree</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Worked abroad</span><span>UK, SE</span></div>
+                        <div class="detail-row"><span>Visiting positions</span><span>1</span></div>
+                        <div class="detail-row"><span>Industry exp 3+ yr</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Active consulting</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Board memberships</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>ERS research</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>ERS teaching</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 18. Tiina Virtanen - 46 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm yellow">!</div>
+                    <span class="individual-name">Tiina Virtanen</span>
+                    <span class="individual-tag">PhD</span>
+                    <span class="individual-score">46 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>PhD</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Publications</span><span>2</span></div>
+                        <div class="detail-row"><span>Peer-reviewed</span><span>1</span></div>
+                        <div class="detail-row"><span>Last 5 years</span><span>1</span></div>
+                        <div class="detail-row"><span>International degree</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Worked abroad</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Visiting positions</span><span>0</span></div>
+                        <div class="detail-row"><span>Industry exp 3+ yr</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Active consulting</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Board memberships</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>ERS research</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>ERS teaching</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 19. Antti Kallio - 44 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm red">✕</div>
+                    <span class="individual-name">Antti Kallio</span>
+                    <span class="individual-tag">PhD</span>
+                    <span class="individual-score">44 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>PhD</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Publications</span><span>2</span></div>
+                        <div class="detail-row"><span>Peer-reviewed</span><span>1</span></div>
+                        <div class="detail-row"><span>Last 5 years</span><span>1</span></div>
+                        <div class="detail-row"><span>International degree</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Worked abroad</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Visiting positions</span><span>0</span></div>
+                        <div class="detail-row"><span>Industry exp 3+ yr</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Active consulting</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Board memberships</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>ERS research</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>ERS teaching</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 20. Sari Nurmi - 42 pts (MSc with practice) -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm red">✕</div>
+                    <span class="individual-name">Sari Nurmi</span>
+                    <span class="individual-tag">MSc</span>
+                    <span class="individual-score">42 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>PhD</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Publications</span><span>1</span></div>
+                        <div class="detail-row"><span>Peer-reviewed</span><span>0</span></div>
+                        <div class="detail-row"><span>Last 5 years</span><span>1</span></div>
+                        <div class="detail-row"><span>International degree</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Worked abroad</span><span>DE</span></div>
+                        <div class="detail-row"><span>Visiting positions</span><span>0</span></div>
+                        <div class="detail-row"><span>Industry exp 3+ yr</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Active consulting</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Board memberships</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>ERS research</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>ERS teaching</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 21. Ville Lehtinen - 40 pts (MSc with practice) -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm red">✕</div>
+                    <span class="individual-name">Ville Lehtinen</span>
+                    <span class="individual-tag">MSc</span>
+                    <span class="individual-score">40 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>PhD</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Publications</span><span>1</span></div>
+                        <div class="detail-row"><span>Peer-reviewed</span><span>0</span></div>
+                        <div class="detail-row"><span>Last 5 years</span><span>0</span></div>
+                        <div class="detail-row"><span>International degree</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Worked abroad</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Visiting positions</span><span>0</span></div>
+                        <div class="detail-row"><span>Industry exp 3+ yr</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Active consulting</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Board memberships</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>ERS research</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>ERS teaching</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 22. Päivi Salo - 38 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm red">✕</div>
+                    <span class="individual-name">Päivi Salo</span>
+                    <span class="individual-tag">PhD</span>
+                    <span class="individual-score">38 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>PhD</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Publications</span><span>1</span></div>
+                        <div class="detail-row"><span>Peer-reviewed</span><span>0</span></div>
+                        <div class="detail-row"><span>Last 5 years</span><span>0</span></div>
+                        <div class="detail-row"><span>International degree</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Worked abroad</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Visiting positions</span><span>0</span></div>
+                        <div class="detail-row"><span>Industry exp 3+ yr</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Active consulting</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Board memberships</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>ERS research</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>ERS teaching</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 23. Juha Ahonen - 36 pts (MSc) -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm red">✕</div>
+                    <span class="individual-name">Juha Ahonen</span>
+                    <span class="individual-tag">MSc</span>
+                    <span class="individual-score">36 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>PhD</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Publications</span><span>0</span></div>
+                        <div class="detail-row"><span>Peer-reviewed</span><span>0</span></div>
+                        <div class="detail-row"><span>Last 5 years</span><span>0</span></div>
+                        <div class="detail-row"><span>International degree</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Worked abroad</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Visiting positions</span><span>0</span></div>
+                        <div class="detail-row"><span>Industry exp 3+ yr</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Active consulting</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Board memberships</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>ERS research</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>ERS teaching</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 24. Katja Turunen - 34 pts (MSc) -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm red">✕</div>
+                    <span class="individual-name">Katja Turunen</span>
+                    <span class="individual-tag">MSc</span>
+                    <span class="individual-score">34 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>PhD</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Publications</span><span>0</span></div>
+                        <div class="detail-row"><span>Peer-reviewed</span><span>0</span></div>
+                        <div class="detail-row"><span>Last 5 years</span><span>0</span></div>
+                        <div class="detail-row"><span>International degree</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Worked abroad</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Visiting positions</span><span>0</span></div>
+                        <div class="detail-row"><span>Industry exp 3+ yr</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Active consulting</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Board memberships</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>ERS research</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>ERS teaching</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 25. Samuli Holm - 32 pts (MSc) -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm red">✕</div>
+                    <span class="individual-name">Samuli Holm</span>
+                    <span class="individual-tag">MSc</span>
+                    <span class="individual-score">32 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>PhD</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Publications</span><span>0</span></div>
+                        <div class="detail-row"><span>Peer-reviewed</span><span>0</span></div>
+                        <div class="detail-row"><span>Last 5 years</span><span>0</span></div>
+                        <div class="detail-row"><span>International degree</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Worked abroad</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Visiting positions</span><span>0</span></div>
+                        <div class="detail-row"><span>Industry exp 3+ yr</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Active consulting</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Board memberships</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>ERS research</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>ERS teaching</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!-- STUDENTS - 2 CV Criteria (with sub-metrics) + List -->
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <div class="category" id="students">
+        <div class="category-header" onclick="toggleCategory('students')">
+            <div class="category-title">
+                <div class="indicator yellow">!</div>
+                <h3>Students</h3>
+                <span class="source-badge cv">CV</span>
+            </div>
+            <div class="category-score">
+                52/100
+                <span class="expand-arrow">▼</span>
+            </div>
+        </div>
+
+        <div class="criteria-list">
+            <!-- 3.1.2 Quality with sub-metrics -->
+            <div class="criterion expanded" onclick="this.classList.toggle('expanded')">
+                <span class="criterion-code">3.1.2</span>
+                <span class="criterion-name">Student Quality</span>
+                <span class="criterion-value">6.4yr exp</span>
+                <div class="indicator-sm yellow">!</div>
+            </div>
+            <div class="sub-metrics">
+                <div class="sub-metric">
+                    <div class="indicator-sm yellow">!</div>
+                    <span class="sub-metric-name">Work Experience</span>
+                    <span class="sub-metric-value">6.4yr</span>
+                    <span class="sub-metric-target">target 8yr+</span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm green">5</div>
+                    <span class="sub-metric-name">Qualifications</span>
+                    <span class="sub-metric-value">92%</span>
+                    <span class="sub-metric-target">Bachelor+</span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm green">3</div>
+                    <span class="sub-metric-name">Avg Age</span>
+                    <span class="sub-metric-value">28</span>
+                    <span class="sub-metric-target">mature</span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm yellow">!</div>
+                    <span class="sub-metric-name">Gender Diversity</span>
+                    <span class="sub-metric-value">35%</span>
+                    <span class="sub-metric-target">target 40%</span>
+                </div>
+            </div>
+
+            <!-- 3.1.3 International with sub-metrics -->
+            <div class="criterion expanded" onclick="this.classList.toggle('expanded')">
+                <span class="criterion-code">3.1.3</span>
+                <span class="criterion-name">International Diversity</span>
+                <span class="criterion-value">40%</span>
+                <div class="indicator-sm green">3</div>
+            </div>
+            <div class="sub-metrics">
+                <div class="sub-metric">
+                    <div class="indicator-sm green">5</div>
+                    <span class="sub-metric-name">% International Students</span>
+                    <span class="sub-metric-value">40%</span>
+                    <span class="sub-metric-target">target 30%</span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm green">3</div>
+                    <span class="sub-metric-name">Nationalities</span>
+                    <span class="sub-metric-value">8</span>
+                    <span class="sub-metric-target">diverse</span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm yellow">!</div>
+                    <span class="sub-metric-name">Exchange Participation</span>
+                    <span class="sub-metric-value">18%</span>
+                    <span class="sub-metric-target">target 25%</span>
+                </div>
+            </div>
+
+            <!-- Student List - Level 3 -->
+            <div class="individual-list-header" onclick="this.classList.toggle('expanded')">
+                <span>Student List (30 CVs → Top 25)</span>
+                <span class="expand-arrow">▼</span>
+            </div>
+            <div class="individuals">
+                <!-- 1. Mikael Lindgren - 88 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm green">5</div>
+                    <span class="individual-name">Mikael Lindgren</span>
+                    <span class="individual-tag">Senior</span>
+                    <span class="individual-score">88 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>Work Experience</span><span>12 years</span></div>
+                        <div class="detail-row"><span>Qualifications</span><span>BSc Economics</span></div>
+                        <div class="detail-row"><span>Age</span><span>34</span></div>
+                        <div class="detail-row"><span>International</span><span>SE, UK, DE</span></div>
+                    </div>
+                </div>
+
+                <!-- 2. Tomas Eriksson - 82 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm green">5</div>
+                    <span class="individual-name">Tomas Eriksson</span>
+                    <span class="individual-tag">Senior</span>
+                    <span class="individual-score">82 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>Work Experience</span><span>10 years</span></div>
+                        <div class="detail-row"><span>Qualifications</span><span>BSc Finance</span></div>
+                        <div class="detail-row"><span>Age</span><span>32</span></div>
+                        <div class="detail-row"><span>International</span><span>SE, US</span></div>
+                    </div>
+                </div>
+
+                <!-- 3. Henrik Johansson - 78 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm green">5</div>
+                    <span class="individual-name">Henrik Johansson</span>
+                    <span class="individual-tag">Senior</span>
+                    <span class="individual-score">78 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>Work Experience</span><span>9 years</span></div>
+                        <div class="detail-row"><span>Qualifications</span><span>BBA Management</span></div>
+                        <div class="detail-row"><span>Age</span><span>31</span></div>
+                        <div class="detail-row"><span>International</span><span>FI, NO</span></div>
+                    </div>
+                </div>
+
+                <!-- 4. Anna Saarinen - 74 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm green">5</div>
+                    <span class="individual-name">Anna Saarinen</span>
+                    <span class="individual-tag">Mid</span>
+                    <span class="individual-score">74 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>Work Experience</span><span>7 years</span></div>
+                        <div class="detail-row"><span>Qualifications</span><span>BBA Marketing</span></div>
+                        <div class="detail-row"><span>Age</span><span>29</span></div>
+                        <div class="detail-row"><span>International</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 5. Sofia Lindqvist - 72 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm green">5</div>
+                    <span class="individual-name">Sofia Lindqvist</span>
+                    <span class="individual-tag">Mid</span>
+                    <span class="individual-score">72 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>Work Experience</span><span>6 years</span></div>
+                        <div class="detail-row"><span>Qualifications</span><span>BSc Business</span></div>
+                        <div class="detail-row"><span>Age</span><span>28</span></div>
+                        <div class="detail-row"><span>International</span><span>FI, UK</span></div>
+                    </div>
+                </div>
+
+                <!-- 6. Marcus Holm - 70 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm green">5</div>
+                    <span class="individual-name">Marcus Holm</span>
+                    <span class="individual-tag">Senior</span>
+                    <span class="individual-score">70 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>Work Experience</span><span>8 years</span></div>
+                        <div class="detail-row"><span>Qualifications</span><span>BSc Accounting</span></div>
+                        <div class="detail-row"><span>Age</span><span>30</span></div>
+                        <div class="detail-row"><span>International</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 7. Elina Koskinen - 68 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm green">3</div>
+                    <span class="individual-name">Elina Koskinen</span>
+                    <span class="individual-tag">Mid</span>
+                    <span class="individual-score">68 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>Work Experience</span><span>5 years</span></div>
+                        <div class="detail-row"><span>Qualifications</span><span>BBA Finance</span></div>
+                        <div class="detail-row"><span>Age</span><span>27</span></div>
+                        <div class="detail-row"><span>International</span><span>FI, DE</span></div>
+                    </div>
+                </div>
+
+                <!-- 8. Markus Virtanen - 66 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm green">3</div>
+                    <span class="individual-name">Markus Virtanen</span>
+                    <span class="individual-tag">Mid</span>
+                    <span class="individual-score">66 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>Work Experience</span><span>6 years</span></div>
+                        <div class="detail-row"><span>Qualifications</span><span>BSc Economics</span></div>
+                        <div class="detail-row"><span>Age</span><span>28</span></div>
+                        <div class="detail-row"><span>International</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 9. Pekka Niemi - 64 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm green">3</div>
+                    <span class="individual-name">Pekka Niemi</span>
+                    <span class="individual-tag">Junior</span>
+                    <span class="individual-score">64 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>Work Experience</span><span>4 years</span></div>
+                        <div class="detail-row"><span>Qualifications</span><span>BBA Business</span></div>
+                        <div class="detail-row"><span>Age</span><span>26</span></div>
+                        <div class="detail-row"><span>International</span><span>FI, SE</span></div>
+                    </div>
+                </div>
+
+                <!-- 10. Hanna Mäkelä - 62 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm green">3</div>
+                    <span class="individual-name">Hanna Mäkelä</span>
+                    <span class="individual-tag">Junior</span>
+                    <span class="individual-score">62 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>Work Experience</span><span>3 years</span></div>
+                        <div class="detail-row"><span>Qualifications</span><span>BSc Finance</span></div>
+                        <div class="detail-row"><span>Age</span><span>25</span></div>
+                        <div class="detail-row"><span>International</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 11. Juha Laine - 60 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm green">3</div>
+                    <span class="individual-name">Juha Laine</span>
+                    <span class="individual-tag">Mid</span>
+                    <span class="individual-score">60 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>Work Experience</span><span>5 years</span></div>
+                        <div class="detail-row"><span>Qualifications</span><span>BBA Marketing</span></div>
+                        <div class="detail-row"><span>Age</span><span>27</span></div>
+                        <div class="detail-row"><span>International</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 12. Sari Lehtonen - 58 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm yellow">!</div>
+                    <span class="individual-name">Sari Lehtonen</span>
+                    <span class="individual-tag">Junior</span>
+                    <span class="individual-score">58 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>Work Experience</span><span>3 years</span></div>
+                        <div class="detail-row"><span>Qualifications</span><span>BSc Business</span></div>
+                        <div class="detail-row"><span>Age</span><span>25</span></div>
+                        <div class="detail-row"><span>International</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 13. Ville Korpi - 56 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm yellow">!</div>
+                    <span class="individual-name">Ville Korpi</span>
+                    <span class="individual-tag">Junior</span>
+                    <span class="individual-score">56 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>Work Experience</span><span>3 years</span></div>
+                        <div class="detail-row"><span>Qualifications</span><span>BBA Management</span></div>
+                        <div class="detail-row"><span>Age</span><span>25</span></div>
+                        <div class="detail-row"><span>International</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 14. Riikka Salmi - 54 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm yellow">!</div>
+                    <span class="individual-name">Riikka Salmi</span>
+                    <span class="individual-tag">Mid</span>
+                    <span class="individual-score">54 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>Work Experience</span><span>4 years</span></div>
+                        <div class="detail-row"><span>Qualifications</span><span>BSc Accounting</span></div>
+                        <div class="detail-row"><span>Age</span><span>26</span></div>
+                        <div class="detail-row"><span>International</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 15. Olli Järvinen - 52 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm yellow">!</div>
+                    <span class="individual-name">Olli Järvinen</span>
+                    <span class="individual-tag">Junior</span>
+                    <span class="individual-score">52 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>Work Experience</span><span>2 years</span></div>
+                        <div class="detail-row"><span>Qualifications</span><span>BBA Finance</span></div>
+                        <div class="detail-row"><span>Age</span><span>24</span></div>
+                        <div class="detail-row"><span>International</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 16. Katja Rantanen - 50 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm yellow">!</div>
+                    <span class="individual-name">Katja Rantanen</span>
+                    <span class="individual-tag">Fresh</span>
+                    <span class="individual-score">50 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>Work Experience</span><span>1 year</span></div>
+                        <div class="detail-row"><span>Qualifications</span><span>BSc Economics</span></div>
+                        <div class="detail-row"><span>Age</span><span>23</span></div>
+                        <div class="detail-row"><span>International</span><span>FI, EE</span></div>
+                    </div>
+                </div>
+
+                <!-- 17. Antti Nurmi - 48 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm yellow">!</div>
+                    <span class="individual-name">Antti Nurmi</span>
+                    <span class="individual-tag">Fresh</span>
+                    <span class="individual-score">48 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>Work Experience</span><span>1 year</span></div>
+                        <div class="detail-row"><span>Qualifications</span><span>BBA Business</span></div>
+                        <div class="detail-row"><span>Age</span><span>23</span></div>
+                        <div class="detail-row"><span>International</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 18. Laura Heikkinen - 46 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm yellow">!</div>
+                    <span class="individual-name">Laura Heikkinen</span>
+                    <span class="individual-tag">Fresh</span>
+                    <span class="individual-score">46 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>Work Experience</span><span>0 years</span></div>
+                        <div class="detail-row"><span>Qualifications</span><span>BSc Finance</span></div>
+                        <div class="detail-row"><span>Age</span><span>22</span></div>
+                        <div class="detail-row"><span>International</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 19. Minna Laakso - 44 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm red">✕</div>
+                    <span class="individual-name">Minna Laakso</span>
+                    <span class="individual-tag">Fresh</span>
+                    <span class="individual-score">44 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>Work Experience</span><span>0 years</span></div>
+                        <div class="detail-row"><span>Qualifications</span><span>BBA Marketing</span></div>
+                        <div class="detail-row"><span>Age</span><span>22</span></div>
+                        <div class="detail-row"><span>International</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 20. Jari Kallio - 42 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm red">✕</div>
+                    <span class="individual-name">Jari Kallio</span>
+                    <span class="individual-tag">Fresh</span>
+                    <span class="individual-score">42 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>Work Experience</span><span>0 years</span></div>
+                        <div class="detail-row"><span>Qualifications</span><span>BSc Business</span></div>
+                        <div class="detail-row"><span>Age</span><span>22</span></div>
+                        <div class="detail-row"><span>International</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 21. Päivi Holm - 40 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm red">✕</div>
+                    <span class="individual-name">Päivi Holm</span>
+                    <span class="individual-tag">Fresh</span>
+                    <span class="individual-score">40 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>Work Experience</span><span>0 years</span></div>
+                        <div class="detail-row"><span>Qualifications</span><span>BBA Accounting</span></div>
+                        <div class="detail-row"><span>Age</span><span>22</span></div>
+                        <div class="detail-row"><span>International</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 22. Kari Nieminen - 38 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm red">✕</div>
+                    <span class="individual-name">Kari Nieminen</span>
+                    <span class="individual-tag">Fresh</span>
+                    <span class="individual-score">38 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>Work Experience</span><span>0 years</span></div>
+                        <div class="detail-row"><span>Qualifications</span><span>BSc Economics</span></div>
+                        <div class="detail-row"><span>Age</span><span>21</span></div>
+                        <div class="detail-row"><span>International</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 23. Tiina Mäki - 36 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm red">✕</div>
+                    <span class="individual-name">Tiina Mäki</span>
+                    <span class="individual-tag">Fresh</span>
+                    <span class="individual-score">36 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>Work Experience</span><span>0 years</span></div>
+                        <div class="detail-row"><span>Qualifications</span><span>BBA Finance</span></div>
+                        <div class="detail-row"><span>Age</span><span>21</span></div>
+                        <div class="detail-row"><span>International</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 24. Petri Salo - 34 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm red">✕</div>
+                    <span class="individual-name">Petri Salo</span>
+                    <span class="individual-tag">Fresh</span>
+                    <span class="individual-score">34 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>Work Experience</span><span>0 years</span></div>
+                        <div class="detail-row"><span>Qualifications</span><span>BSc Business</span></div>
+                        <div class="detail-row"><span>Age</span><span>21</span></div>
+                        <div class="detail-row"><span>International</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 25. Samuli Lehto - 32 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm red">✕</div>
+                    <span class="individual-name">Samuli Lehto</span>
+                    <span class="individual-tag">Fresh</span>
+                    <span class="individual-score">32 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>Work Experience</span><span>0 years</span></div>
+                        <div class="detail-row"><span>Qualifications</span><span>BBA Management</span></div>
+                        <div class="detail-row"><span>Age</span><span>21</span></div>
+                        <div class="detail-row"><span>International</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alumni Section -->
+    <div class="category" id="alumni">
+        <div class="category-header" onclick="toggleCategory('alumni')">
+            <div class="category-title">
+                <div class="indicator yellow">!</div>
+                <h3>Alumni</h3>
+                <span class="source-badge cv">CV</span>
+            </div>
+            <div class="category-score">
+                44/100
+                <span class="expand-arrow">▼</span>
+            </div>
+        </div>
+
+        <div class="criteria-list">
+            <!-- 4.2.1 Graduate Quality with sub-metrics -->
+            <div class="criterion expanded" onclick="this.classList.toggle('expanded')">
+                <span class="criterion-code">4.2.1</span>
+                <span class="criterion-name">Graduate Quality</span>
+                <span class="criterion-value">52</span>
+                <div class="indicator-sm yellow">!</div>
+            </div>
+            <div class="sub-metrics">
+                <div class="sub-metric">
+                    <div class="indicator-sm green">5</div>
+                    <span class="sub-metric-name">Employment Rate</span>
+                    <span class="sub-metric-value">94%</span>
+                    <span class="sub-metric-target">target 90%</span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm yellow">!</div>
+                    <span class="sub-metric-name">Time to Employment</span>
+                    <span class="sub-metric-value">4.2 mo</span>
+                    <span class="sub-metric-target">target 3 mo</span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm green">3</div>
+                    <span class="sub-metric-name">Employer Quality</span>
+                    <span class="sub-metric-value">35%</span>
+                    <span class="sub-metric-target">top employers</span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm green">3</div>
+                    <span class="sub-metric-name">Career Progression</span>
+                    <span class="sub-metric-value">28%</span>
+                    <span class="sub-metric-target">promoted</span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm red">✕</div>
+                    <span class="sub-metric-name">International Careers</span>
+                    <span class="sub-metric-value">12%</span>
+                    <span class="sub-metric-target">target 25%</span>
+                </div>
+            </div>
+
+            <!-- Alumni List - Level 3 -->
+            <div class="individual-list-header" onclick="this.classList.toggle('expanded')">
+                <span>Alumni List (22 CVs → Top 25)</span>
+                <span class="expand-arrow">▼</span>
+            </div>
+            <div class="individuals">
+                <!-- 1. Emma Virtanen - 85 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm green">5</div>
+                    <span class="individual-name">Emma Virtanen</span>
+                    <span class="individual-tag">2022</span>
+                    <span class="individual-score">85 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>Employed</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Time to Employment</span><span>2 months</span></div>
+                        <div class="detail-row"><span>Employer</span><span>McKinsey</span></div>
+                        <div class="detail-row"><span>Role</span><span>Senior Consultant</span></div>
+                        <div class="detail-row"><span>International</span><span>London, UK</span></div>
+                    </div>
+                </div>
+
+                <!-- 2. Lauri Korhonen - 82 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm green">5</div>
+                    <span class="individual-name">Lauri Korhonen</span>
+                    <span class="individual-tag">2021</span>
+                    <span class="individual-score">82 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>Employed</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Time to Employment</span><span>1 month</span></div>
+                        <div class="detail-row"><span>Employer</span><span>Goldman Sachs</span></div>
+                        <div class="detail-row"><span>Role</span><span>Associate</span></div>
+                        <div class="detail-row"><span>International</span><span>Frankfurt, DE</span></div>
+                    </div>
+                </div>
+
+                <!-- 3. Sofia Mäkinen - 78 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm green">5</div>
+                    <span class="individual-name">Sofia Mäkinen</span>
+                    <span class="individual-tag">2022</span>
+                    <span class="individual-score">78 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>Employed</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Time to Employment</span><span>2 months</span></div>
+                        <div class="detail-row"><span>Employer</span><span>KPMG</span></div>
+                        <div class="detail-row"><span>Role</span><span>Manager</span></div>
+                        <div class="detail-row"><span>International</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 4. Jukka Nieminen - 76 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm green">5</div>
+                    <span class="individual-name">Jukka Nieminen</span>
+                    <span class="individual-tag">2021</span>
+                    <span class="individual-score">76 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>Employed</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Time to Employment</span><span>3 months</span></div>
+                        <div class="detail-row"><span>Employer</span><span>Nordea</span></div>
+                        <div class="detail-row"><span>Role</span><span>Senior Analyst</span></div>
+                        <div class="detail-row"><span>International</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 5. Anna Lehtonen - 74 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm green">5</div>
+                    <span class="individual-name">Anna Lehtonen</span>
+                    <span class="individual-tag">2023</span>
+                    <span class="individual-score">74 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>Employed</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Time to Employment</span><span>1 month</span></div>
+                        <div class="detail-row"><span>Employer</span><span>Deloitte</span></div>
+                        <div class="detail-row"><span>Role</span><span>Consultant</span></div>
+                        <div class="detail-row"><span>International</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 6. Mikko Saarinen - 72 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm green">5</div>
+                    <span class="individual-name">Mikko Saarinen</span>
+                    <span class="individual-tag">2020</span>
+                    <span class="individual-score">72 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>Employed</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Time to Employment</span><span>4 months</span></div>
+                        <div class="detail-row"><span>Employer</span><span>OP Financial</span></div>
+                        <div class="detail-row"><span>Role</span><span>Director</span></div>
+                        <div class="detail-row"><span>International</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 7. Henna Järvinen - 70 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm green">5</div>
+                    <span class="individual-name">Henna Järvinen</span>
+                    <span class="individual-tag">2022</span>
+                    <span class="individual-score">70 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>Employed</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Time to Employment</span><span>3 months</span></div>
+                        <div class="detail-row"><span>Employer</span><span>PwC</span></div>
+                        <div class="detail-row"><span>Role</span><span>Senior Associate</span></div>
+                        <div class="detail-row"><span>International</span><span>Stockholm, SE</span></div>
+                    </div>
+                </div>
+
+                <!-- 8. Petri Rantanen - 68 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm green">3</div>
+                    <span class="individual-name">Petri Rantanen</span>
+                    <span class="individual-tag">2021</span>
+                    <span class="individual-score">68 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>Employed</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Time to Employment</span><span>4 months</span></div>
+                        <div class="detail-row"><span>Employer</span><span>Danske Bank</span></div>
+                        <div class="detail-row"><span>Role</span><span>Analyst</span></div>
+                        <div class="detail-row"><span>International</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 9. Sanna Lahtinen - 66 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm green">3</div>
+                    <span class="individual-name">Sanna Lahtinen</span>
+                    <span class="individual-tag">2020</span>
+                    <span class="individual-score">66 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>Employed</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Time to Employment</span><span>5 months</span></div>
+                        <div class="detail-row"><span>Employer</span><span>Wärtsilä</span></div>
+                        <div class="detail-row"><span>Role</span><span>Finance Manager</span></div>
+                        <div class="detail-row"><span>International</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 10. Ville Heikkinen - 64 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm green">3</div>
+                    <span class="individual-name">Ville Heikkinen</span>
+                    <span class="individual-tag">2023</span>
+                    <span class="individual-score">64 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>Employed</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Time to Employment</span><span>2 months</span></div>
+                        <div class="detail-row"><span>Employer</span><span>EY</span></div>
+                        <div class="detail-row"><span>Role</span><span>Associate</span></div>
+                        <div class="detail-row"><span>International</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 11. Tiina Koskinen - 62 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm green">3</div>
+                    <span class="individual-name">Tiina Koskinen</span>
+                    <span class="individual-tag">2022</span>
+                    <span class="individual-score">62 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>Employed</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Time to Employment</span><span>4 months</span></div>
+                        <div class="detail-row"><span>Employer</span><span>Fortum</span></div>
+                        <div class="detail-row"><span>Role</span><span>Financial Analyst</span></div>
+                        <div class="detail-row"><span>International</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 12. Antti Virtanen - 60 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm green">3</div>
+                    <span class="individual-name">Antti Virtanen</span>
+                    <span class="individual-tag">2021</span>
+                    <span class="individual-score">60 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>Employed</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Time to Employment</span><span>5 months</span></div>
+                        <div class="detail-row"><span>Employer</span><span>Sampo Group</span></div>
+                        <div class="detail-row"><span>Role</span><span>Analyst</span></div>
+                        <div class="detail-row"><span>International</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 13. Maria Peltonen - 58 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm yellow">!</div>
+                    <span class="individual-name">Maria Peltonen</span>
+                    <span class="individual-tag">2020</span>
+                    <span class="individual-score">58 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>Employed</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Time to Employment</span><span>6 months</span></div>
+                        <div class="detail-row"><span>Employer</span><span>Kesko</span></div>
+                        <div class="detail-row"><span>Role</span><span>Controller</span></div>
+                        <div class="detail-row"><span>International</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 14. Jari Laine - 56 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm yellow">!</div>
+                    <span class="individual-name">Jari Laine</span>
+                    <span class="individual-tag">2023</span>
+                    <span class="individual-score">56 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>Employed</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Time to Employment</span><span>5 months</span></div>
+                        <div class="detail-row"><span>Employer</span><span>Finnair</span></div>
+                        <div class="detail-row"><span>Role</span><span>Finance Associate</span></div>
+                        <div class="detail-row"><span>International</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 15. Elina Salonen - 54 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm yellow">!</div>
+                    <span class="individual-name">Elina Salonen</span>
+                    <span class="individual-tag">2022</span>
+                    <span class="individual-score">54 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>Employed</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Time to Employment</span><span>7 months</span></div>
+                        <div class="detail-row"><span>Employer</span><span>Neste</span></div>
+                        <div class="detail-row"><span>Role</span><span>Junior Analyst</span></div>
+                        <div class="detail-row"><span>International</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 16. Markus Niemi - 52 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm yellow">!</div>
+                    <span class="individual-name">Markus Niemi</span>
+                    <span class="individual-tag">2021</span>
+                    <span class="individual-score">52 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>Employed</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Time to Employment</span><span>8 months</span></div>
+                        <div class="detail-row"><span>Employer</span><span>Valmet</span></div>
+                        <div class="detail-row"><span>Role</span><span>Accountant</span></div>
+                        <div class="detail-row"><span>International</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 17. Katri Mäkelä - 50 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm yellow">!</div>
+                    <span class="individual-name">Katri Mäkelä</span>
+                    <span class="individual-tag">2020</span>
+                    <span class="individual-score">50 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>Employed</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Time to Employment</span><span>9 months</span></div>
+                        <div class="detail-row"><span>Employer</span><span>UPM</span></div>
+                        <div class="detail-row"><span>Role</span><span>Finance Trainee</span></div>
+                        <div class="detail-row"><span>International</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 18. Olli Hämäläinen - 48 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm yellow">!</div>
+                    <span class="individual-name">Olli Hämäläinen</span>
+                    <span class="individual-tag">2023</span>
+                    <span class="individual-score">48 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>Employed</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Time to Employment</span><span>6 months</span></div>
+                        <div class="detail-row"><span>Employer</span><span>SME Company</span></div>
+                        <div class="detail-row"><span>Role</span><span>Accountant</span></div>
+                        <div class="detail-row"><span>International</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 19. Riikka Kallio - 46 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm yellow">!</div>
+                    <span class="individual-name">Riikka Kallio</span>
+                    <span class="individual-tag">2022</span>
+                    <span class="individual-score">46 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>Employed</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Time to Employment</span><span>10 months</span></div>
+                        <div class="detail-row"><span>Employer</span><span>Local Bank</span></div>
+                        <div class="detail-row"><span>Role</span><span>Clerk</span></div>
+                        <div class="detail-row"><span>International</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 20. Matti Koivisto - 44 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm red">✕</div>
+                    <span class="individual-name">Matti Koivisto</span>
+                    <span class="individual-tag">2023</span>
+                    <span class="individual-score">44 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>Employed</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Time to Employment</span><span>11 months</span></div>
+                        <div class="detail-row"><span>Employer</span><span>Retail Company</span></div>
+                        <div class="detail-row"><span>Role</span><span>Assistant</span></div>
+                        <div class="detail-row"><span>International</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 21. Sari Nurmi - 42 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm red">✕</div>
+                    <span class="individual-name">Sari Nurmi</span>
+                    <span class="individual-tag">2021</span>
+                    <span class="individual-score">42 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>Employed</span><span class="cross">✕</span></div>
+                        <div class="detail-row"><span>Time to Employment</span><span>—</span></div>
+                        <div class="detail-row"><span>Employer</span><span>—</span></div>
+                        <div class="detail-row"><span>Role</span><span>Job Seeking</span></div>
+                        <div class="detail-row"><span>International</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+
+                <!-- 22. Juha Turunen - 40 pts -->
+                <div class="individual-row" onclick="this.classList.toggle('expanded')">
+                    <div class="indicator-sm red">✕</div>
+                    <span class="individual-name">Juha Turunen</span>
+                    <span class="individual-tag">2020</span>
+                    <span class="individual-score">40 pts</span>
+                    <button class="cv-btn" onclick="event.stopPropagation()">⬇️ CV</button>
+                </div>
+                <div class="individual-detail">
+                    <div class="detail-list">
+                        <div class="detail-row"><span>Employed</span><span class="checkmark">✓</span></div>
+                        <div class="detail-row"><span>Time to Employment</span><span>12+ months</span></div>
+                        <div class="detail-row"><span>Employer</span><span>Family Business</span></div>
+                        <div class="detail-row"><span>Role</span><span>General</span></div>
+                        <div class="detail-row"><span>International</span><span class="cross">✕</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!-- PROGRAMME -->
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <div class="category" id="programme">
+        <div class="category-header" onclick="toggleCategory('programme')">
+            <div class="category-title">
+                <div class="indicator green">5</div>
+                <h3>Programme</h3>
+                <span class="source-badge doc">DOC</span>
+            </div>
+            <div class="category-score">
+                84/100
+                <span class="expand-arrow">▼</span>
+            </div>
+        </div>
+
+        <div class="criteria-list">
+            <!-- 2.2.2 ILOs Defined - with extracted ILOs -->
+            <div class="criterion expanded" onclick="this.classList.toggle('expanded')">
+                <span class="criterion-code">2.2.2</span>
+                <span class="criterion-name">ILOs Defined</span>
+                <span class="criterion-value">27 ILOs</span>
+                <div class="indicator-sm green">5</div>
+            </div>
+            <div class="sub-metrics">
+                <div class="sub-metric">
+                    <div class="indicator-sm green">5</div>
+                    <span class="sub-metric-name">Knowledge ILOs</span>
+                    <span class="sub-metric-value">8 found</span>
+                    <span class="sub-metric-target"></span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm green">5</div>
+                    <span class="sub-metric-name">Skills ILOs</span>
+                    <span class="sub-metric-value">9 found</span>
+                    <span class="sub-metric-target"></span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm green">3</div>
+                    <span class="sub-metric-name">Behaviour ILOs</span>
+                    <span class="sub-metric-value">5 found</span>
+                    <span class="sub-metric-target"></span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm yellow">!</div>
+                    <span class="sub-metric-name">Attitude ILOs</span>
+                    <span class="sub-metric-value">3 found</span>
+                    <span class="sub-metric-target"></span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm green">5</div>
+                    <span class="sub-metric-name">Measurable (action verbs)</span>
+                    <span class="sub-metric-value">85%</span>
+                    <span class="sub-metric-target"></span>
+                </div>
+            </div>
+
+            <!-- International Pillar - with findings -->
+            <div class="criterion expanded" onclick="this.classList.toggle('expanded')">
+                <span class="criterion-code">2.2.x</span>
+                <span class="criterion-name">International Pillar</span>
+                <span class="criterion-value">covered</span>
+                <div class="indicator-sm green">5</div>
+            </div>
+            <div class="sub-metrics">
+                <div class="sub-metric">
+                    <div class="indicator-sm green">5</div>
+                    <span class="sub-metric-name">"Global financial markets"</span>
+                    <span class="sub-metric-value">ILO 03</span>
+                    <span class="sub-metric-target"></span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm green">5</div>
+                    <span class="sub-metric-name">"Cross-border transactions"</span>
+                    <span class="sub-metric-value">ILO 07</span>
+                    <span class="sub-metric-target"></span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm green">5</div>
+                    <span class="sub-metric-name">"International regulatory frameworks"</span>
+                    <span class="sub-metric-value">ILO 12</span>
+                    <span class="sub-metric-target"></span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm green">3</div>
+                    <span class="sub-metric-name">"Multicultural team collaboration"</span>
+                    <span class="sub-metric-value">ILO 18</span>
+                    <span class="sub-metric-target"></span>
+                </div>
+            </div>
+
+            <!-- Practice Pillar - partial -->
+            <div class="criterion expanded" onclick="this.classList.toggle('expanded')">
+                <span class="criterion-code">2.2.x</span>
+                <span class="criterion-name">Practice Pillar</span>
+                <span class="criterion-value">partial</span>
+                <div class="indicator-sm yellow">!</div>
+            </div>
+            <div class="sub-metrics">
+                <div class="sub-metric">
+                    <div class="indicator-sm green">5</div>
+                    <span class="sub-metric-name">"Apply valuation techniques"</span>
+                    <span class="sub-metric-value">ILO 04</span>
+                    <span class="sub-metric-target"></span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm green">3</div>
+                    <span class="sub-metric-name">"Bloomberg terminal proficiency"</span>
+                    <span class="sub-metric-value">ILO 09</span>
+                    <span class="sub-metric-target"></span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm yellow">!</div>
+                    <span class="sub-metric-name">Internship/placement ILO</span>
+                    <span class="sub-metric-value">not found</span>
+                    <span class="sub-metric-target">recommended</span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm yellow">!</div>
+                    <span class="sub-metric-name">Industry project ILO</span>
+                    <span class="sub-metric-value">not found</span>
+                    <span class="sub-metric-target">recommended</span>
+                </div>
+            </div>
+
+            <!-- ERS Pillar - weak -->
+            <div class="criterion expanded" onclick="this.classList.toggle('expanded')">
+                <span class="criterion-code">2.2.x</span>
+                <span class="criterion-name">ERS Pillar</span>
+                <span class="criterion-value">weak</span>
+                <div class="indicator-sm red">✕</div>
+            </div>
+            <div class="sub-metrics">
+                <div class="sub-metric">
+                    <div class="indicator-sm yellow">!</div>
+                    <span class="sub-metric-name">"Ethical considerations in finance"</span>
+                    <span class="sub-metric-value">ILO 21</span>
+                    <span class="sub-metric-target">vague</span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm red">✕</div>
+                    <span class="sub-metric-name">Sustainability/ESG ILO</span>
+                    <span class="sub-metric-value">not found</span>
+                    <span class="sub-metric-target">required</span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm red">✕</div>
+                    <span class="sub-metric-name">Social responsibility ILO</span>
+                    <span class="sub-metric-value">not found</span>
+                    <span class="sub-metric-target">required</span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm red">✕</div>
+                    <span class="sub-metric-name">Governance/compliance ILO</span>
+                    <span class="sub-metric-value">not found</span>
+                    <span class="sub-metric-target">required</span>
+                </div>
+            </div>
+
+            <!-- Digital Pillar -->
+            <div class="criterion expanded" onclick="this.classList.toggle('expanded')">
+                <span class="criterion-code">2.2.x</span>
+                <span class="criterion-name">Digital Pillar</span>
+                <span class="criterion-value">covered</span>
+                <div class="indicator-sm green">3</div>
+            </div>
+            <div class="sub-metrics">
+                <div class="sub-metric">
+                    <div class="indicator-sm green">5</div>
+                    <span class="sub-metric-name">"Financial modelling in Excel"</span>
+                    <span class="sub-metric-value">ILO 05</span>
+                    <span class="sub-metric-target"></span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm green">5</div>
+                    <span class="sub-metric-name">"Data analysis with Python/R"</span>
+                    <span class="sub-metric-value">ILO 11</span>
+                    <span class="sub-metric-target"></span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm green">3</div>
+                    <span class="sub-metric-name">"Bloomberg terminal proficiency"</span>
+                    <span class="sub-metric-value">ILO 09</span>
+                    <span class="sub-metric-target"></span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm yellow">!</div>
+                    <span class="sub-metric-name">AI/FinTech ILO</span>
+                    <span class="sub-metric-value">not found</span>
+                    <span class="sub-metric-target">emerging</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!-- SCHOOL DATA - Institutional criteria -->
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <div class="category" id="school">
+        <div class="category-header" onclick="toggleCategory('school')">
+            <div class="category-title">
+                <div class="indicator green">3</div>
+                <h3>School Data</h3>
+                <span class="source-badge web">WEB</span>
+            </div>
+            <div class="category-score">
+                68/100
+                <span class="expand-arrow">▼</span>
+            </div>
+        </div>
+
+        <div class="criteria-list">
+            <!-- 1.3.3 Teaching Quality -->
+            <div class="criterion expanded" onclick="this.classList.toggle('expanded')">
+                <span class="criterion-code">1.3.3</span>
+                <span class="criterion-name">Teaching Quality</span>
+                <span class="criterion-value">✓</span>
+                <div class="indicator-sm green">3</div>
+            </div>
+            <div class="sub-metrics">
+                <div class="sub-metric">
+                    <div class="indicator-sm green">5</div>
+                    <span class="sub-metric-name">Course descriptions published</span>
+                    <span class="sub-metric-value">✓ found</span>
+                    <span class="sub-metric-target"></span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm green">5</div>
+                    <span class="sub-metric-name">Learning platform (Moodle)</span>
+                    <span class="sub-metric-value">✓ found</span>
+                    <span class="sub-metric-target"></span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm green">3</div>
+                    <span class="sub-metric-name">Pedagogy methods described</span>
+                    <span class="sub-metric-value">✓ found</span>
+                    <span class="sub-metric-target"></span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm yellow">!</div>
+                    <span class="sub-metric-name">Student feedback process</span>
+                    <span class="sub-metric-value">not found</span>
+                    <span class="sub-metric-target"></span>
+                </div>
+            </div>
+
+            <!-- 1.3.7 Faculty Management -->
+            <div class="criterion expanded" onclick="this.classList.toggle('expanded')">
+                <span class="criterion-code">1.3.7</span>
+                <span class="criterion-name">Faculty Management</span>
+                <span class="criterion-value">✓</span>
+                <div class="indicator-sm green">5</div>
+            </div>
+            <div class="sub-metrics">
+                <div class="sub-metric">
+                    <div class="indicator-sm green">5</div>
+                    <span class="sub-metric-name">Faculty directory page</span>
+                    <span class="sub-metric-value">✓ found</span>
+                    <span class="sub-metric-target"></span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm green">5</div>
+                    <span class="sub-metric-name">Faculty profiles with credentials</span>
+                    <span class="sub-metric-value">✓ found</span>
+                    <span class="sub-metric-target"></span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm green">5</div>
+                    <span class="sub-metric-name">Research publications listed</span>
+                    <span class="sub-metric-value">✓ found</span>
+                    <span class="sub-metric-target"></span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm green">3</div>
+                    <span class="sub-metric-name">Department structure clear</span>
+                    <span class="sub-metric-value">✓ found</span>
+                    <span class="sub-metric-target"></span>
+                </div>
+            </div>
+
+            <!-- 3.1.1 Entry Criteria & Selection -->
+            <div class="criterion expanded" onclick="this.classList.toggle('expanded')">
+                <span class="criterion-code">3.1.1</span>
+                <span class="criterion-name">Entry Criteria & Selection</span>
+                <span class="criterion-value">✓</span>
+                <div class="indicator-sm green">5</div>
+            </div>
+            <div class="sub-metrics">
+                <div class="sub-metric">
+                    <div class="indicator-sm green">5</div>
+                    <span class="sub-metric-name">Admission requirements page</span>
+                    <span class="sub-metric-value">✓ found</span>
+                    <span class="sub-metric-target"></span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm green">5</div>
+                    <span class="sub-metric-name">Degree requirements stated</span>
+                    <span class="sub-metric-value">Bachelor</span>
+                    <span class="sub-metric-target"></span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm green">5</div>
+                    <span class="sub-metric-name">Language requirements</span>
+                    <span class="sub-metric-value">IELTS 6.5</span>
+                    <span class="sub-metric-target"></span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm green">3</div>
+                    <span class="sub-metric-name">Selection process described</span>
+                    <span class="sub-metric-value">✓ found</span>
+                    <span class="sub-metric-target"></span>
+                </div>
+            </div>
+
+            <!-- 3.1.4 Enrolment & Induction -->
+            <div class="criterion expanded" onclick="this.classList.toggle('expanded')">
+                <span class="criterion-code">3.1.4</span>
+                <span class="criterion-name">Enrolment & Induction</span>
+                <span class="criterion-value">✓</span>
+                <div class="indicator-sm green">5</div>
+            </div>
+            <div class="sub-metrics">
+                <div class="sub-metric">
+                    <div class="indicator-sm green">5</div>
+                    <span class="sub-metric-name">Application portal</span>
+                    <span class="sub-metric-value">✓ found</span>
+                    <span class="sub-metric-target"></span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm green">5</div>
+                    <span class="sub-metric-name">Application deadlines</span>
+                    <span class="sub-metric-value">✓ found</span>
+                    <span class="sub-metric-target"></span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm green">5</div>
+                    <span class="sub-metric-name">Orientation information</span>
+                    <span class="sub-metric-value">✓ found</span>
+                    <span class="sub-metric-target"></span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm green">3</div>
+                    <span class="sub-metric-name">International student support</span>
+                    <span class="sub-metric-value">✓ found</span>
+                    <span class="sub-metric-target"></span>
+                </div>
+            </div>
+
+            <!-- 4.2.2 Career Services - limited -->
+            <div class="criterion expanded" onclick="this.classList.toggle('expanded')">
+                <span class="criterion-code">4.2.2</span>
+                <span class="criterion-name">Career Services</span>
+                <span class="criterion-value">limited</span>
+                <div class="indicator-sm yellow">!</div>
+            </div>
+            <div class="sub-metrics">
+                <div class="sub-metric">
+                    <div class="indicator-sm green">5</div>
+                    <span class="sub-metric-name">Career services page</span>
+                    <span class="sub-metric-value">✓ found</span>
+                    <span class="sub-metric-target"></span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm green">3</div>
+                    <span class="sub-metric-name">Job listings portal</span>
+                    <span class="sub-metric-value">✓ found</span>
+                    <span class="sub-metric-target"></span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm yellow">!</div>
+                    <span class="sub-metric-name">Career counseling info</span>
+                    <span class="sub-metric-value">not found</span>
+                    <span class="sub-metric-target">recommended</span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm yellow">!</div>
+                    <span class="sub-metric-name">Employer partnerships</span>
+                    <span class="sub-metric-value">not found</span>
+                    <span class="sub-metric-target">recommended</span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm red">✕</div>
+                    <span class="sub-metric-name">Employment statistics</span>
+                    <span class="sub-metric-value">not found</span>
+                    <span class="sub-metric-target">required</span>
+                </div>
+            </div>
+
+            <!-- 4.3.1 Alumni Relations - weak -->
+            <div class="criterion expanded" onclick="this.classList.toggle('expanded')">
+                <span class="criterion-code">4.3.1</span>
+                <span class="criterion-name">Alumni Relations</span>
+                <span class="criterion-value">weak</span>
+                <div class="indicator-sm red">✕</div>
+            </div>
+            <div class="sub-metrics">
+                <div class="sub-metric">
+                    <div class="indicator-sm green">3</div>
+                    <span class="sub-metric-name">Alumni page exists</span>
+                    <span class="sub-metric-value">✓ found</span>
+                    <span class="sub-metric-target"></span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm red">✕</div>
+                    <span class="sub-metric-name">Alumni events calendar</span>
+                    <span class="sub-metric-value">not found</span>
+                    <span class="sub-metric-target">required</span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm red">✕</div>
+                    <span class="sub-metric-name">Alumni network/directory</span>
+                    <span class="sub-metric-value">not found</span>
+                    <span class="sub-metric-target">required</span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm red">✕</div>
+                    <span class="sub-metric-name">Alumni mentoring program</span>
+                    <span class="sub-metric-value">not found</span>
+                    <span class="sub-metric-target">required</span>
+                </div>
+                <div class="sub-metric">
+                    <div class="indicator-sm red">✕</div>
+                    <span class="sub-metric-name">Alumni success stories</span>
+                    <span class="sub-metric-value">not found</span>
+                    <span class="sub-metric-target">recommended</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resources -->
+    <div class="resources">
+        <h3>📁 Download Reports</h3>
+        <div class="resource-grid">
+            <button class="resource-btn">📊 Executive Summary</button>
+            <button class="resource-btn">🔍 Gap Report</button>
+            <button class="resource-btn">📋 Improvement Plan</button>
+            <button class="resource-btn">📝 Annex 1 / OX Data</button>
+            <button class="resource-btn">👥 CV Package (ZIP)</button>
+            <button class="resource-btn">📄 Full Report (PDF)</button>
+        </div>
+    </div>
+
+    <!-- Legend -->
+    <div class="legend">
+        <div class="legend-item"><div class="indicator-sm green">5</div><span>5-year (70+)</span></div>
+        <div class="legend-item"><div class="indicator-sm green">3</div><span>3-year (60-69)</span></div>
+        <div class="legend-item"><div class="indicator-sm yellow">!</div><span>Borderline (45-59)</span></div>
+        <div class="legend-item"><div class="indicator-sm red">✕</div><span>Gap (&lt;45)</span></div>
+        <div class="legend-item"><div class="indicator-sm na">?</div><span>No data</span></div>
+    </div>
+
+</div>
+
+<script>
+function toggleCategory(id) {
+    document.getElementById(id).classList.toggle('expanded');
+}
+</script>
+
+</body>
+</html>
